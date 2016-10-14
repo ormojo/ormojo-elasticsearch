@@ -1,0 +1,9 @@
+/node_modules
+/build
+*.sublime-workspace
+/logs
+npm-debug.log
+
+.v8flags.*
+.npm/
+.vagrant/
