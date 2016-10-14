@@ -7,3 +7,5 @@ npm-debug.log
 .v8flags.*
 .npm/
 .vagrant/
+
+test/es_client.coffee
