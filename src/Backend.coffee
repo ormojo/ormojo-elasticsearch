@@ -5,7 +5,7 @@ class ElasticsearchBackend extends Backend
 
 	bindModel: (model) ->
 		bm = new BoundModel(model, @)
-		bm.__esindex = bm.spec.backend.index
+		bm.__esindex = bm.spec.backend.index or model.name
 		bm.__estype = bm.spec.backend.type
 		bm
 
@@ -16,25 +16,55 @@ class ElasticsearchBackend extends Backend
 		instance = new boundModel.instanceClass(boundModel, dataValues)
 		instance
 
-	createInstance: (boundModel, initialData) ->
+	create: (boundModel, initialData) ->
 		instance = @createRawInstance(boundModel)
 		instance.isNewRecord = true
 		instance.__applyDefaults()
 		if initialData isnt undefined
 			instance.set(initialData)
-			@saveInstance(instance, boundModel)
+			@save(instance, boundModel)
 		else
 			instance
 
+	_deserialize: (boundModel, esData, instance) ->
+		if instance
+			Object.assign(instance.dataValues, esData._source)
+		else
+			instance = @createRawInstance(boundModel, Object.assign({ id: esData._id}, esData._source))
+		instance._version = esData._version
+		instance._type = esData._type
+		instance._score = esData._score
+		instance
+
+
 	################################ FINDING
-	findInstanceById: (boundModel, id) ->
+	findById: (boundModel, id) ->
 		@corpus.promiseResolve(
-			@es.get({ id, index: boundModel.__esindex, type: (boundModel.__estype or '_all')})
+			@es.get({
+				id, index: boundModel.__esindex, type: '_all'
+				ignore: [404]
+			})
 		).then (rst) =>
+			console.log "es.get: ", rst
 			if not rst.found
 				undefined
 			else
-				@createRawInstance(boundModel, Object.assign({ id: rst._id}, rst._source))
+				@_deserialize(boundModel, rst)
+
+	find: (boundModel, options) ->
+		@corpus.promiseResolve(
+			@es.search({
+				index: boundModel.__esindex
+				body: options.elasticsearch_query
+				size: 1
+				version: true
+			})
+		).then (rst) =>
+			console.log "es.search: ", rst
+			if (not rst) or (not rst.hits) or (rst.hits.total is 0)
+				undefined
+			else
+				@_deserialize(boundModel, rst.hits.hits[0])
 
 	################################ SAVING
 	_saveNewInstance: (instance, boundModel) ->
@@ -44,9 +74,10 @@ class ElasticsearchBackend extends Backend
 				type: instance.__type or boundModel.__estype
 				body: instance.dataValues
 			})
-		).then (rst) ->
+		).then (rst) =>
+			console.log "es.create: ", rst
 			instance.id = rst._id
-			instance._version = rst._version
+			@_deserialize(boundModel, rst, instance)
 			delete instance.isNewRecord
 			instance
 
@@ -61,17 +92,18 @@ class ElasticsearchBackend extends Backend
 				type: instance.__type or boundModel.__estype
 				body: { doc: delta }
 			})
-		).then (rst) ->
-			console.log "saveOldInstance result ", rst
+		).then (rst) =>
+			console.log "es.update: ", rst
+			@_deserialize(boundModel, rst, instance)
 			instance
 
-	saveInstance: (instance, boundModel) ->
+	save: (instance, boundModel) ->
 		if instance.isNewRecord
 			@_saveNewInstance(instance, boundModel)
 		else
 			@_saveOldInstance(instance, boundModel)
 
-	destroyInstance: (instance, boundModel) ->
+	destroy: (instance, boundModel) ->
 		@corpus.promiseResolve(
 			@es.delete({
 				index: boundModel.__esindex
@@ -79,7 +111,7 @@ class ElasticsearchBackend extends Backend
 				id: instance.id
 			})
 		).then (rst) ->
-			console.log "destroyInstance result ", rst
+			console.log "es.delete: ", rst
 			undefined
 
 module.exports = ElasticsearchBackend
