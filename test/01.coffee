@@ -2,9 +2,12 @@
 es_backend = require '..'
 es_client = require './es_client'
 ormojo = require 'ormojo'
+Blackbird = require 'blackbird-promises'
 
 makeCorpus = ->
 	c = new ormojo.Corpus({
+		promiseResolve: (x) -> Blackbird.resolve(x)
+		promiseReject: (x) -> Blackbird.reject(x)
 		backends: {
 			'main': new es_backend(es_client)
 		}
@@ -26,23 +29,25 @@ makeCorpus = ->
 		}
 	})
 
-	{ Widget: c.getModel('widget') }
+	{ corpus: c, Widget: c.getModel('widget') }
 
 describe 'basic tests: ', ->
+	it 'should delete index', ->
+		es_client.indices.delete({index: 'widget'})
+
 	it 'should create, save, find by id', ->
 		{ Widget } = makeCorpus()
 		awidget = Widget.create()
 		awidget.name = 'whosit'
 
 		testThing = null
-		awidget.save().then (thing) ->
-			console.log 'saved!', thing.get()
-			thing
+		awidget.save()
 		.then (thing) ->
 			testThing = thing
 			Widget.findById(thing.id)
 		.then (anotherThing) ->
 			expect(anotherThing.get()).to.deep.equal(testThing.get())
+			anotherThing.destroy()
 
 	it 'shouldnt find documents that arent there', ->
 		{ Widget } = makeCorpus()
@@ -56,7 +61,6 @@ describe 'basic tests: ', ->
 		id = null
 		Widget.create({name: 'whatsit', qty: 1000000})
 		.then (widg) ->
-			console.log widg.get()
 			id = widg.id
 			widg.destroy()
 		.then ->
@@ -67,6 +71,7 @@ describe 'basic tests: ', ->
 	it 'should find one by keyword', ->
 		{ Widget } = makeCorpus()
 		Widget.create({name: 'uniquely named thing', qty: 50})
+		.delay(1000) # wait for es indexing
 		.then ->
 			Widget.find({elasticsearch_query: {
 				query: { match: { name: 'uniquely' } }
@@ -82,3 +87,32 @@ describe 'basic tests: ', ->
 		}})
 		.then (nothing) ->
 			expect(nothing).to.equal(undefined)
+
+	it 'should find many', ->
+		{ Widget } = makeCorpus()
+		promises = (Widget.create({name: "findAll #{i}", tags: ['findAll'], qty: i}) for i in [0...10])
+		Blackbird.all(promises)
+		.delay(1000) # wait for es indexing
+		.then (results) ->
+			Widget.findAll({elasticsearch_query: {
+				query: { match: { tags: 'findAll' } }
+			}})
+		.then (results) ->
+			expect(results.data.length).to.equal(10)
+
+	it 'should paginate', ->
+		{ Widget } = makeCorpus()
+		Widget.findAll({
+			limit: 3
+			elasticsearch_query: {
+				query: { match: { tags: 'findAll' } }
+				sort: { qty: 'asc' }
+			}
+		})
+		.then (results) ->
+			expect(results.data[0].qty).to.equal(0)
+			Widget.findAll({
+				pagination: results.pagination
+			})
+		.then (results) ->
+			expect(results.data[0].qty).to.equal(3)

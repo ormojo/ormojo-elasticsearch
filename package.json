@@ -24,8 +24,10 @@
     "chai": "^3.5.0",
     "coffee-script": "^1.10.0",
     "elasticsearch": "^11.0.1",
-    "mocha": "^2.4.5"
+    "mocha": "^2.4.5",
+    "blackbird-promises": "0.0.1"
   },
-  "dependencies": {},
+  "dependencies": {
+  },
   "peerDependencies": {}
 }

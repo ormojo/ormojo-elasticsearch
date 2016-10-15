@@ -1,4 +1,5 @@
 { Backend, BoundModel, Util, createStandardInstanceClassForBoundModel } = require 'ormojo'
+ESPagination = require './ESPagination'
 
 class ElasticsearchBackend extends Backend
 	constructor: (@es) ->
@@ -45,7 +46,7 @@ class ElasticsearchBackend extends Backend
 				ignore: [404]
 			})
 		).then (rst) =>
-			console.log "es.get: ", rst
+			@corpus.log.trace "es.get: ", rst
 			if not rst.found
 				undefined
 			else
@@ -60,11 +61,45 @@ class ElasticsearchBackend extends Backend
 				version: true
 			})
 		).then (rst) =>
-			console.log "es.search: ", rst
+			@corpus.log.trace "es.search: ", rst
 			if (not rst) or (not rst.hits) or (rst.hits.total is 0)
 				undefined
 			else
 				@_deserialize(boundModel, rst.hits.hits[0])
+
+	findAll: (boundModel, options) ->
+		searchParams = {
+			index: boundModel.__esindex
+			version: true
+		}
+		# Determine query
+		searchParams.body = if options.elasticsearch_query then options.elasticsearch_query else options.pagination?.query
+		# Determine search boundaries
+		if options.pagination
+			searchParams.from = options.pagination.offset
+			searchParams.size = options.pagination.limit
+		else
+			if options.offset then searchParams.from = options.offset
+			if options.limit then searchParams.size = options.limit
+
+		@corpus.promiseResolve(@es.search(searchParams))
+		.then (rst) =>
+			@corpus.log.trace "es.search: ", rst
+			if (not rst) or (not rst.hits)
+				{ data: [] }
+			else
+				data = (@_deserialize(boundModel, x) for x in rst.hits.hits)
+				pagination = if (searchParams.from or 0) + data.length < rst.hits.total
+					(new ESPagination(searchParams.body)).setFromOffset((searchParams.from or 0) + data.length, (searchParams.size or data.length), rst.hits.total)
+
+				{
+					data
+					metadata: {
+						total: rst.hits.total
+						max_score: rst.hits.max_score
+					}
+					pagination
+				}
 
 	################################ SAVING
 	_saveNewInstance: (instance, boundModel) ->
@@ -75,7 +110,7 @@ class ElasticsearchBackend extends Backend
 				body: instance.dataValues
 			})
 		).then (rst) =>
-			console.log "es.create: ", rst
+			@corpus.log.trace "es.create: ", rst
 			instance.id = rst._id
 			@_deserialize(boundModel, rst, instance)
 			delete instance.isNewRecord
@@ -93,7 +128,7 @@ class ElasticsearchBackend extends Backend
 				body: { doc: delta }
 			})
 		).then (rst) =>
-			console.log "es.update: ", rst
+			@corpus.log.trace "es.update: ", rst
 			@_deserialize(boundModel, rst, instance)
 			instance
 
@@ -110,8 +145,8 @@ class ElasticsearchBackend extends Backend
 				type: instance.__type or boundModel.__estype
 				id: instance.id
 			})
-		).then (rst) ->
-			console.log "es.delete: ", rst
+		).then (rst) =>
+			@corpus.log.trace "es.delete: ", rst
 			undefined
 
 module.exports = ElasticsearchBackend
