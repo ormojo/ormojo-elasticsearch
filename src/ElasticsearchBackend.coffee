@@ -1,21 +1,28 @@
 { Backend, BoundModel, Util, createStandardInstanceClassForBoundModel } = require 'ormojo'
-ESPagination = require './ESPagination'
+ElasticsearchPagination = require './ElasticsearchPagination'
+ElasticsearchBoundModel = require './ElasticsearchBoundModel'
+{ ElasticsearchIndex, ElasticsearchIndices } = require './ElasticsearchIndex'
+ElasticsearchMigration = require './ElasticsearchMigration'
 
 class ElasticsearchBackend extends Backend
 	constructor: (@es) ->
+		@boundModels = {}
+		@indices = new ElasticsearchIndices(@)
 
 	bindModel: (model) ->
-		bm = new BoundModel(model, @)
-		bm.__esindex = bm.spec.backend.index or model.name
-		bm.__estype = bm.spec.backend.type
+		# Basic checks
+		bm = new ElasticsearchBoundModel(model, @)
+		if @boundModels[bm.name] then throw new Error("ElasticsearchBackend: Cannot bind two models with the same name (`#{bm.name}`)")
+		@boundModels[bm.name] = bm
+		@indices.addBoundModel(bm)
 		bm
+
+	getMigration: ->
+		new ElasticsearchMigration(@corpus, @)
 
 	################################ CREATION
 	createRawInstance: (boundModel, dataValues) ->
-		if not boundModel.instanceClass
-			boundModel.instanceClass = createStandardInstanceClassForBoundModel(boundModel)
-		instance = new boundModel.instanceClass(boundModel, dataValues)
-		instance
+		boundModel.createInstance(dataValues)
 
 	create: (boundModel, initialData) ->
 		instance = @createRawInstance(boundModel)
@@ -37,12 +44,13 @@ class ElasticsearchBackend extends Backend
 		instance._score = esData._score
 		instance
 
-
 	################################ FINDING
 	findById: (boundModel, id) ->
-		@corpus.promiseResolve(
+		@corpus.Promise.resolve(
 			@es.get({
-				id, index: boundModel.__esindex, type: '_all'
+				id
+				index: boundModel.getIndex()
+				type: '_all'
 				ignore: [404]
 			})
 		).then (rst) =>
@@ -53,9 +61,9 @@ class ElasticsearchBackend extends Backend
 				@_deserialize(boundModel, rst)
 
 	find: (boundModel, options) ->
-		@corpus.promiseResolve(
+		@corpus.Promise.resolve(
 			@es.search({
-				index: boundModel.__esindex
+				index: boundModel.getIndex()
 				body: options.elasticsearch_query
 				size: 1
 				version: true
@@ -69,7 +77,7 @@ class ElasticsearchBackend extends Backend
 
 	findAll: (boundModel, options) ->
 		searchParams = {
-			index: boundModel.__esindex
+			index: boundModel.getIndex()
 			version: true
 		}
 		# Determine query
@@ -82,7 +90,7 @@ class ElasticsearchBackend extends Backend
 			if options.offset then searchParams.from = options.offset
 			if options.limit then searchParams.size = options.limit
 
-		@corpus.promiseResolve(@es.search(searchParams))
+		@corpus.Promise.resolve(@es.search(searchParams))
 		.then (rst) =>
 			@corpus.log.trace "es.search: ", rst
 			if (not rst) or (not rst.hits)
@@ -90,7 +98,7 @@ class ElasticsearchBackend extends Backend
 			else
 				data = (@_deserialize(boundModel, x) for x in rst.hits.hits)
 				pagination = if (searchParams.from or 0) + data.length < rst.hits.total
-					(new ESPagination(searchParams.body)).setFromOffset((searchParams.from or 0) + data.length, (searchParams.size or data.length), rst.hits.total)
+					(new ElasticsearchPagination(searchParams.body)).setFromOffset((searchParams.from or 0) + data.length, (searchParams.size or data.length), rst.hits.total)
 
 				{
 					data
@@ -103,10 +111,10 @@ class ElasticsearchBackend extends Backend
 
 	################################ SAVING
 	_saveNewInstance: (instance, boundModel) ->
-		@corpus.promiseResolve(
+		@corpus.Promise.resolve(
 			@es.create({
-				index: boundModel.__esindex
-				type: instance.__type or boundModel.__estype
+				index: boundModel.getIndex()
+				type: instance._type or boundModel.getDefaultType()
 				body: instance.dataValues
 			})
 		).then (rst) =>
@@ -119,12 +127,12 @@ class ElasticsearchBackend extends Backend
 	_saveOldInstance: (instance, boundModel) ->
 		# Determine data changes to be saved - early out if no changes
 		delta = Util.getDelta(instance)
-		if not delta then return @corpus.promiseResolve(instance)
+		if not delta then return @corpus.Promise.resolve(instance)
 		# Punt to ES
-		@corpus.promiseResolve(
+		@corpus.Promise.resolve(
 			@es.update({
-				index: boundModel.__esindex
-				type: instance.__type or boundModel.__estype
+				index: boundModel.getIndex()
+				type: instance._type or boundModel.getDefaultType()
 				body: { doc: delta }
 			})
 		).then (rst) =>
@@ -139,10 +147,10 @@ class ElasticsearchBackend extends Backend
 			@_saveOldInstance(instance, boundModel)
 
 	destroy: (instance, boundModel) ->
-		@corpus.promiseResolve(
+		@corpus.Promise.resolve(
 			@es.delete({
-				index: boundModel.__esindex
-				type: instance.__type or boundModel.__estype
+				index: boundModel.getIndex()
+				type: instance._type or boundModel.getDefaultType()
 				id: instance.id
 			})
 		).then (rst) =>

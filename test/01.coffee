@@ -6,21 +6,24 @@ Blackbird = require 'blackbird-promises'
 
 makeCorpus = ->
 	c = new ormojo.Corpus({
-		promiseResolve: (x) -> Blackbird.resolve(x)
-		promiseReject: (x) -> Blackbird.reject(x)
+		Promise: {
+			resolve: (x) -> Blackbird.resolve(x)
+			reject: (x) -> Blackbird.reject(x)
+			all: (x) -> Blackbird.all(x)
+		}
 		backends: {
 			'main': new es_backend(es_client)
 		}
 		defaultBackend: 'main'
 	})
 
-	c.createModel({
+	Widget = c.createModel({
 		name: 'widget'
 		fields: {
 			id: { type: ormojo.STRING }
 			name: { type: ormojo.STRING, default: 'nameless' }
 			qty: { type: ormojo.INTEGER, default: -> 1 + 1 }
-			tags: { type: ormojo.ARRAY, default: -> [] }
+			tags: { type: ormojo.ARRAY(ormojo.STRING), default: -> [] }
 		}
 		backends: {
 			main: {
@@ -29,11 +32,11 @@ makeCorpus = ->
 		}
 	})
 
-	{ corpus: c, Widget: c.getModel('widget') }
+	{ corpus: c, Widget }
 
 describe 'basic tests: ', ->
 	it 'should delete index', ->
-		es_client.indices.delete({index: 'widget'})
+		es_client.indices.delete({index: 'widget', ignore: [404]})
 
 	it 'should create, save, find by id', ->
 		{ Widget } = makeCorpus()

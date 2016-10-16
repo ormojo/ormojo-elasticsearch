@@ -1,1 +1,1 @@
-module.exports = require './Backend'
+module.exports = require './ElasticsearchBackend'
