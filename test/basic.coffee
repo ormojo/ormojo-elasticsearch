@@ -3,6 +3,7 @@ es_backend = require '..'
 es_client = require './es_client'
 ormojo = require 'ormojo'
 Blackbird = require 'blackbird-promises'
+ESQ = require 'esq'
 
 makeCorpus = ->
 	c = new ormojo.Corpus({
@@ -23,7 +24,13 @@ makeCorpus = ->
 			id: { type: ormojo.STRING }
 			name: { type: ormojo.STRING, default: 'nameless' }
 			qty: { type: ormojo.INTEGER, default: -> 1 + 1 }
-			tags: { type: ormojo.ARRAY(ormojo.STRING), default: -> [] }
+			tags: {
+				type: ormojo.ARRAY(ormojo.STRING)
+				default: -> []
+				elasticsearch: {
+					mapping: (new ESQ).query('fields', 'raw', { type: 'string', index: 'not_analyzed'})
+				}
+			}
 		}
 		backends: {
 			main: {
@@ -35,8 +42,18 @@ makeCorpus = ->
 	{ corpus: c, Widget }
 
 describe 'basic tests: ', ->
-	it 'should delete index', ->
-		es_client.indices.delete({index: 'widget', ignore: [404]})
+	it 'should delete all indices from prior tests', ->
+		es_client.indices.delete({
+			index: ['widget_ormojo*', 'widget']
+			ignore: [404]
+		})
+
+	it 'should create mapping', ->
+		{ corpus } = makeCorpus()
+		corpus.bindAllModels()
+		mig = corpus.getBackend('main').getMigration()
+		mig.prepare().then ->
+			mig.execute()
 
 	it 'should create, save, find by id', ->
 		{ Widget } = makeCorpus()
@@ -119,3 +136,13 @@ describe 'basic tests: ', ->
 			})
 		.then (results) ->
 			expect(results.data[0].qty).to.equal(3)
+
+	it 'should perform filtering', ->
+		{ Widget } = makeCorpus()
+		Widget.find({
+			elasticsearch_query: {
+				query: (new ESQ).query('constant_score', 'filter', 'term', { 'tags.raw': 'findAll' })
+			}
+		})
+		.then (results) ->
+			console.log results
