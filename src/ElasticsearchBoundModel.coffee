@@ -6,8 +6,8 @@ class ElasticsearchBoundModel extends BoundModel
 		super(model, backend)
 		if typeof(@name) isnt 'string' then throw new Error('ElasticsearchBoundModel: Cannot bind unnamed model.')
 		if typeof(@spec.backend.type) isnt 'string' then throw new Error('ElasticsearchBoundModel: must specify an elasticsearch type')
-		@esIndex = @spec.backend.index or @name
-		@esType = @spec.backend.type
+		@esIndex = (@spec.backend.index or @name).toLowerCase()
+		@esType = (@spec.backend.type).toLowerCase()
 		@instanceClass = createStandardInstanceClassForBoundModel(@)
 
 	createInstance: (dataValues) ->
