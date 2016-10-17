@@ -19,7 +19,7 @@ class ElasticsearchBoundModel extends BoundModel
 	# Generate Elasticsearch mapping properties
 	generateMappingProps: ->
 		props = {}
-		for k, field of @getFields()
+		for k, field of @getFields() when k isnt 'id'
 			mapping = field.spec.elasticsearch?.mapping or {}
 			mapping.type = esTypeMap(field.spec.type)
 			props[field.getBackendFieldName()] = mapping
