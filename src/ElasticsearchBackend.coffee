@@ -133,6 +133,7 @@ class ElasticsearchBackend extends Backend
 			@es.update({
 				index: boundModel.getIndex()
 				type: instance._type or boundModel.getDefaultType()
+				id: instance.id
 				body: { doc: delta }
 			})
 		).then (rst) =>
