@@ -45,20 +45,21 @@ class ElasticsearchBackend extends Backend
 		instance
 
 	################################ FINDING
-	findById: (boundModel, id) ->
+	_findById: (boundModel, id) ->
 		@corpus.Promise.resolve(
-			@es.get({
-				id
-				index: boundModel.getIndex()
-				type: '_all'
-				ignore: [404]
-			})
+			@es.get { id, index: boundModel.getIndex(), type: '_all', ignore: [404] }
 		).then (rst) =>
 			@corpus.log.trace "es.get: ", rst
-			if not rst.found
-				undefined
-			else
-				@_deserialize(boundModel, rst)
+			if not rst.found then undefined else @_deserialize(boundModel, rst)
+
+	_findByIds: (boundModel, ids) ->
+		@corpus.Promise.resolve(
+			@es.mget { index: boundModel.getIndex(), body: { ids } }
+		).then (rst) =>
+			@corpus.log.trace "es.mget: ", rst
+
+	findById: (boundModel, id) ->
+		if Array.isArray(id) then @_findByIds(boundModel, id) else @_findById(boundModel, id)
 
 	find: (boundModel, options) ->
 		@corpus.Promise.resolve(
