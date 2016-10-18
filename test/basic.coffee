@@ -67,7 +67,10 @@ describe 'basic tests: ', ->
 			Widget.findById(thing.id)
 		.then (anotherThing) ->
 			expect(anotherThing.get()).to.deep.equal(testThing.get())
-			anotherThing.destroy()
+			Widget.findById([testThing.id])
+		.then (arrayOfThings) ->
+			expect(arrayOfThings[0].get()).to.deep.equal(testThing.get())
+
 
 	it 'shouldnt find documents that arent there', ->
 		{ Widget } = makeCorpus()
@@ -75,6 +78,11 @@ describe 'basic tests: ', ->
 		Widget.findById('nothere')
 		.then (x) ->
 			expect(x).to.equal(undefined)
+			Widget.findById(['nothere', 'nowhere'])
+		.then (xs) ->
+			expect(xs.length).to.equal(2)
+			expect(xs[0]).to.equal(undefined)
+			expect(xs[1]).to.equal(undefined)
 
 	it 'should save, delete, not find', ->
 		{ Widget } = makeCorpus()

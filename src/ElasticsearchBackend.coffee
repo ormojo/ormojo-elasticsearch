@@ -57,6 +57,9 @@ class ElasticsearchBackend extends Backend
 			@es.mget { index: boundModel.getIndex(), body: { ids } }
 		).then (rst) =>
 			@corpus.log.trace "es.mget: ", rst
+			# Comprehense over returned entities.
+			for entity in (rst?.docs or [])
+				if not (entity?.found) then undefined else @_deserialize(boundModel, entity)
 
 	findById: (boundModel, id) ->
 		if Array.isArray(id) then @_findByIds(boundModel, id) else @_findById(boundModel, id)

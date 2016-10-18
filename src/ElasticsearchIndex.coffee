@@ -1,5 +1,3 @@
-
-
 # Represents an index in Elasticsearch.
 class ElasticsearchIndex
 	constructor: (@backend, @name) ->
