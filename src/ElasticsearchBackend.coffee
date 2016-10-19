@@ -49,14 +49,14 @@ class ElasticsearchBackend extends Backend
 		@corpus.Promise.resolve(
 			@es.get { id, index: boundModel.getIndex(), type: '_all', ignore: [404] }
 		).then (rst) =>
-			@corpus.log.trace "es.get: ", rst
+			@corpus.log.trace "es.get <", rst
 			if not rst.found then undefined else @_deserialize(boundModel, rst)
 
 	_findByIds: (boundModel, ids) ->
 		@corpus.Promise.resolve(
 			@es.mget { index: boundModel.getIndex(), body: { ids } }
 		).then (rst) =>
-			@corpus.log.trace "es.mget: ", rst
+			@corpus.log.trace "es.mget <", rst
 			# Comprehense over returned entities.
 			for entity in (rst?.docs or [])
 				if not (entity?.found) then undefined else @_deserialize(boundModel, entity)
@@ -73,7 +73,7 @@ class ElasticsearchBackend extends Backend
 				version: true
 			})
 		).then (rst) =>
-			@corpus.log.trace "es.search: ", rst
+			@corpus.log.trace "es.search <", rst
 			if (not rst) or (not rst.hits) or (rst.hits.total is 0)
 				undefined
 			else
@@ -94,9 +94,10 @@ class ElasticsearchBackend extends Backend
 			if options.offset then searchParams.from = options.offset
 			if options.limit then searchParams.size = options.limit
 
+		@corpus.log.trace "es.search >", searchParams
 		@corpus.Promise.resolve(@es.search(searchParams))
 		.then (rst) =>
-			@corpus.log.trace "es.search: ", rst
+			@corpus.log.trace "es.search <", rst
 			if (not rst) or (not rst.hits)
 				{ data: [] }
 			else
@@ -122,7 +123,7 @@ class ElasticsearchBackend extends Backend
 				body: instance.dataValues
 			})
 		).then (rst) =>
-			@corpus.log.trace "es.create: ", rst
+			@corpus.log.trace "es.create <", rst
 			instance.id = rst._id
 			@_deserialize(boundModel, rst, instance)
 			delete instance.isNewRecord
@@ -141,7 +142,7 @@ class ElasticsearchBackend extends Backend
 				body: { doc: delta }
 			})
 		).then (rst) =>
-			@corpus.log.trace "es.update: ", rst
+			@corpus.log.trace "es.update <", rst
 			@_deserialize(boundModel, rst, instance)
 			instance
 
@@ -159,7 +160,7 @@ class ElasticsearchBackend extends Backend
 				id: instance.id
 			})
 		).then (rst) =>
-			@corpus.log.trace "es.delete: ", rst
+			@corpus.log.trace "es.delete <", rst
 			undefined
 
 module.exports = ElasticsearchBackend
