@@ -37,9 +37,7 @@ class MigrationPlan
 	getTargetMappings: -> @targetMappings
 
 	prepare: ->
-		@getMappings()
-		.then =>
-			@getAliases()
+		@backend.corpus.Promise.all([@getMappings(), @getAliases()])
 		.then =>
 			@finalChecks()
 
@@ -49,6 +47,7 @@ class MigrationPlan
 			ignore: [404]
 		})
 		.then (result) =>
+			@backend.corpus.log.trace 'indices.getMapping', result
 			rst = _extractFirst(result)?.mappings
 			@currentMappings = rst or {}
 
