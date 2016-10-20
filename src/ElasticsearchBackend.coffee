@@ -1,8 +1,9 @@
 { Backend, BoundModel, Util, createStandardInstanceClassForBoundModel } = require 'ormojo'
-ElasticsearchPagination = require './ElasticsearchPagination'
+ElasticsearchCursor = require './ElasticsearchCursor'
 ElasticsearchBoundModel = require './ElasticsearchBoundModel'
 { ElasticsearchIndex, ElasticsearchIndices } = require './ElasticsearchIndex'
 ElasticsearchMigration = require './ElasticsearchMigration'
+ResultSet = require './ResultSet'
 
 class ElasticsearchBackend extends Backend
 	constructor: (@es) ->
@@ -79,11 +80,11 @@ class ElasticsearchBackend extends Backend
 			version: true
 		}
 		# Determine query
-		searchParams.body = if options.elasticsearch_query then options.elasticsearch_query else options.pagination?.query
+		searchParams.body = if options.elasticsearch_query then options.elasticsearch_query else options.cursor?.query
 		# Determine search boundaries
-		if options.pagination
-			searchParams.from = options.pagination.offset
-			searchParams.size = options.pagination.limit
+		if options.cursor
+			searchParams.from = options.cursor.offset
+			searchParams.size = options.cursor.limit
 		else
 			if options.offset then searchParams.from = options.offset
 			if options.limit then searchParams.size = options.limit
@@ -93,20 +94,10 @@ class ElasticsearchBackend extends Backend
 		.then (rst) =>
 			@corpus.log.trace "es.search <", rst
 			if (not rst) or (not rst.hits)
-				{ data: [] }
+				new ResultSet([], 0, 0, null, 0)
 			else
 				data = (@_deserialize(boundModel, x) for x in rst.hits.hits)
-				pagination = if (searchParams.from or 0) + data.length < rst.hits.total
-					(new ElasticsearchPagination(searchParams.body)).setFromOffset((searchParams.from or 0) + data.length, (searchParams.size or data.length), rst.hits.total)
-
-				{
-					data
-					metadata: {
-						total: rst.hits.total
-						max_score: rst.hits.max_score
-					}
-					pagination
-				}
+				new ResultSet(data, rst.hits.total, searchParams.from, searchParams.body, rst.hits.max_score)
 
 	################################ SAVING
 	_saveNewInstance: (instance, boundModel) ->

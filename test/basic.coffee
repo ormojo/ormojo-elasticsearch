@@ -129,7 +129,7 @@ describe 'basic tests: ', ->
 				query: { match: { tags: 'findAll' } }
 			}})
 		.then (results) ->
-			expect(results.data.length).to.equal(10)
+			expect(results.getResultCount()).to.equal(10)
 
 	it 'should paginate', ->
 		{ Widget } = makeCorpus()
@@ -141,12 +141,12 @@ describe 'basic tests: ', ->
 			}
 		})
 		.then (results) ->
-			expect(results.data[0].qty).to.equal(0)
+			expect(results.getResults()[0].qty).to.equal(0)
 			Widget.findAll({
-				pagination: results.pagination
+				cursor: results.getCursor()
 			})
 		.then (results) ->
-			expect(results.data[0].qty).to.equal(3)
+			expect(results.getResults()[0].qty).to.equal(3)
 
 	it 'should perform filtering', ->
 		{ Widget } = makeCorpus()
@@ -156,4 +156,4 @@ describe 'basic tests: ', ->
 			}
 		})
 		.then (results) ->
-			console.log results
+			expect(results.tags).to.deep.equal(['findAll'])
