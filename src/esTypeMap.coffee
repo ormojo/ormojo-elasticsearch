@@ -11,6 +11,8 @@ esTypeMap = (orType) ->
 		'double'
 	else if orType is ormojo.OBJECT
 		'object'
+	else if orType is ormojo.DATE
+		'date'
 	else if (match = /^ARRAY\((.*)\)$/.exec(orType))
 		esTypeMap(match[1])
 	else
