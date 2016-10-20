@@ -29,6 +29,7 @@ class ElasticsearchBackend extends Backend
 			Object.assign(instance.dataValues, esData._source)
 		else
 			instance = @createRawInstance(boundModel, Object.assign({ id: esData._id}, esData._source))
+		instance._index = esData._index
 		instance._version = esData._version
 		instance._type = esData._type
 		instance._score = esData._score
@@ -36,16 +37,18 @@ class ElasticsearchBackend extends Backend
 
 	################################ FINDING
 	_findById: (boundModel, id) ->
-		@corpus.Promise.resolve(
-			@es.get { id, index: boundModel.getIndex(), type: '_all', ignore: [404] }
-		).then (rst) =>
+		rq = { id, index: boundModel.getIndex(), type: '_all', ignore: [404] }
+		@corpus.log.trace "es.get >", rq
+		@corpus.Promise.resolve( @es.get(rq) )
+		.then (rst) =>
 			@corpus.log.trace "es.get <", rst
 			if not rst.found then undefined else @_deserialize(boundModel, rst)
 
 	_findByIds: (boundModel, ids) ->
-		@corpus.Promise.resolve(
-			@es.mget { index: boundModel.getIndex(), body: { ids } }
-		).then (rst) =>
+		rq = { index: boundModel.getIndex(), body: { ids } }
+		@corpus.log.trace "es.mget >", rq
+		@corpus.Promise.resolve( @es.mget(rq) )
+		.then (rst) =>
 			@corpus.log.trace "es.mget <", rst
 			# Comprehense over returned entities.
 			for entity in (rst?.docs or [])
@@ -55,14 +58,15 @@ class ElasticsearchBackend extends Backend
 		if Array.isArray(id) then @_findByIds(boundModel, id) else @_findById(boundModel, id)
 
 	find: (boundModel, options) ->
-		@corpus.Promise.resolve(
-			@es.search({
-				index: boundModel.getIndex()
-				body: options.elasticsearch_query
-				size: 1
-				version: true
-			})
-		).then (rst) =>
+		rq = {
+			index: boundModel.getIndex()
+			body: options.elasticsearch_query
+			size: 1
+			version: true
+		}
+		@corpus.log.trace "es.search >", rq
+		@corpus.Promise.resolve( @es.search(rq) )
+		.then (rst) =>
 			@corpus.log.trace "es.search <", rst
 			if (not rst) or (not rst.hits) or (rst.hits.total is 0)
 				undefined
@@ -85,7 +89,7 @@ class ElasticsearchBackend extends Backend
 			if options.limit then searchParams.size = options.limit
 
 		@corpus.log.trace "es.search >", searchParams
-		@corpus.Promise.resolve(@es.search(searchParams))
+		@corpus.Promise.resolve( @es.search(searchParams) )
 		.then (rst) =>
 			@corpus.log.trace "es.search <", rst
 			if (not rst) or (not rst.hits)
@@ -106,13 +110,14 @@ class ElasticsearchBackend extends Backend
 
 	################################ SAVING
 	_saveNewInstance: (instance, boundModel) ->
-		@corpus.Promise.resolve(
-			@es.create({
-				index: boundModel.getIndex()
-				type: instance._type or boundModel.getDefaultType()
-				body: instance.dataValues
-			})
-		).then (rst) =>
+		rq = {
+			index: instance._index or boundModel.getIndex()
+			type: instance._type or boundModel.getDefaultType()
+			body: instance.dataValues
+		}
+		@corpus.log.trace "es.create >", rq
+		@corpus.Promise.resolve( @es.create(rq) )
+		.then (rst) =>
 			@corpus.log.trace "es.create <", rst
 			instance.id = rst._id
 			@_deserialize(boundModel, rst, instance)
@@ -124,14 +129,15 @@ class ElasticsearchBackend extends Backend
 		delta = Util.getDelta(instance)
 		if not delta then return @corpus.Promise.resolve(instance)
 		# Punt to ES
-		@corpus.Promise.resolve(
-			@es.update({
-				index: boundModel.getIndex()
-				type: instance._type or boundModel.getDefaultType()
-				id: instance.id
-				body: { doc: delta }
-			})
-		).then (rst) =>
+		rq = {
+			index: instance._index or boundModel.getIndex()
+			type: instance._type or boundModel.getDefaultType()
+			id: instance.id
+			body: { doc: delta }
+		}
+		@corpus.log.trace "es.update >", rq
+		@corpus.Promise.resolve( @es.update(rq) )
+		.then (rst) =>
 			@corpus.log.trace "es.update <", rst
 			@_deserialize(boundModel, rst, instance)
 			instance
@@ -143,14 +149,15 @@ class ElasticsearchBackend extends Backend
 			@_saveOldInstance(instance, boundModel)
 
 	destroy: (instance, boundModel) ->
-		@corpus.Promise.resolve(
-			@es.delete({
-				index: boundModel.getIndex()
-				type: instance._type or boundModel.getDefaultType()
-				id: instance.id
-			})
-		).then (rst) =>
+		rq = {
+			index: instance._index or boundModel.getIndex()
+			type: instance._type or boundModel.getDefaultType()
+			id: instance.id
+		}
+		@corpus.log.trace "es.delete >", rq
+		@corpus.Promise.resolve( @es.delete(rq) )
+		.then (rst) =>
 			@corpus.log.trace "es.delete <", rst
-			undefined
+			if rst?.found then true else false
 
 module.exports = ElasticsearchBackend
