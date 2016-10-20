@@ -1,5 +1,6 @@
 test/
 src/
+doc/
 node_modules/
 coffeelint.json
 .gitignore

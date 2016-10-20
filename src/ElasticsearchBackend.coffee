@@ -24,16 +24,6 @@ class ElasticsearchBackend extends Backend
 	createRawInstance: (boundModel, dataValues) ->
 		boundModel.createInstance(dataValues)
 
-	create: (boundModel, initialData) ->
-		instance = @createRawInstance(boundModel)
-		instance.isNewRecord = true
-		instance.__applyDefaults()
-		if initialData isnt undefined
-			instance.set(initialData)
-			@save(instance, boundModel)
-		else
-			instance
-
 	_deserialize: (boundModel, esData, instance) ->
 		if instance
 			Object.assign(instance.dataValues, esData._source)
