@@ -11,6 +11,9 @@ makeCorpus = ->
 			reject: (x) -> Blackbird.reject(x)
 			all: (x) -> Blackbird.all(x)
 		}
+		log: {
+			trace: console.log.bind(console)
+		}
 		backends: {
 			'main': new es_backend(es_client)
 		}
@@ -71,7 +74,7 @@ describe 'migration tests: ', ->
 		mig.prepare()
 		.then ->
 			plan = mig.getMigrationPlan()
-			console.dir plan[0].targetMappings, { depth: 50 }
+			console.dir plan[0].targetSettings, { depth: 50 }
 
 	it 'should do a create migration', ->
 		corpus = makeCorpus()

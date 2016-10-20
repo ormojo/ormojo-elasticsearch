@@ -12,6 +12,9 @@ makeCorpus = ->
 			reject: (x) -> Blackbird.reject(x)
 			all: (x) -> Blackbird.all(x)
 		}
+		log: {
+			trace: console.log.bind(console)
+		}
 		backends: {
 			'main': new es_backend(es_client)
 		}
