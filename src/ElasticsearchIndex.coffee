@@ -20,6 +20,14 @@ class ElasticsearchIndex
 			}
 		mappings
 
+	generateAnalysis: ->
+		analysis = { }
+		for type, boundModel of @types
+			props = boundModel.generateAnalysisProps()
+			if props.analyzer then analysis.analyzer = Object.assign(analysis.analyzer or {}, props.analyzer)
+			if props.filter then analysis.filter = Object.assign(analysis.filter or {}, props.filter)
+		analysis
+
 # Represents the collection of indices associated with a backend.
 class ElasticsearchIndices
 	constructor: (@backend) ->

@@ -25,6 +25,13 @@ class ElasticsearchBoundModel extends BoundModel
 			props[field.getBackendFieldName()] = mapping
 		props
 
+	# Generate Elasticsearch analysis properties
+	generateAnalysisProps: ->
+		props = {}
+		if @spec.backend.analyzer then props.analyzer = @spec.backend.analyzer
+		if @spec.backend.filter then props.filter = @spec.backend.filter
+		props
+
 
 
 module.exports = ElasticsearchBoundModel

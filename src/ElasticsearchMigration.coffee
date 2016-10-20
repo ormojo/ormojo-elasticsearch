@@ -1,5 +1,6 @@
-{ Migration } = require 'ormojo'
+{ Migration, Util } = require 'ormojo'
 lodash = require 'lodash'
+deepDiff = require 'deep-diff'
 
 _getMigrationCounter = (indexList) ->
 	maxn = 0
@@ -19,7 +20,7 @@ class MigrationPlan
 		@targetSettings = {
 			mappings: @index.generateMappings()
 			settings: {
-				analysis: {}
+				analysis: @index.generateAnalysis()
 			}
 		}
 
@@ -37,7 +38,7 @@ class MigrationPlan
 			ignore: [404]
 		})
 		.then (result) =>
-			@backend.corpus.log.trace 'es.indices.get <', result
+			@backend.corpus.log.trace 'es.indices.get <', JSON.stringify(result, undefined, 2)
 			# Check for missing index.
 			if result.error
 				if result.status is 404 then @indexStatus = 'DOESNT_EXIST'
@@ -61,15 +62,23 @@ class MigrationPlan
 			@currentSettings = {
 				mappings: details.mappings
 				settings: {
-					analysis: details.settings?.analysis or {}
+					analysis: details.settings?.index?.analysis or {}
 				}
 			}
 
 	finalChecks: ->
+		@migrationDiff = deepDiff.diff(@currentSettings, @targetSettings)
+		# Elasticsearch annoyingly stringifies numbers. We must do the same.
+		for difference in @migrationDiff
+			if difference.kind is 'E' and (JSON.stringify(difference.rhs) is difference.lhs)
+				Util.set(@targetSettings, difference.path, difference.lhs)
 		# If mappings are the same, migration is unnecessary.
 		if lodash.isEqual(@currentSettings, @targetSettings)
 			@migrationStrategy = 'NOT_NEEDED'
 			return
+		else
+			@migrationDiff = deepDiff.diff(@currentSettings, @targetSettings)
+			@backend.corpus.log.trace 'migration diff', @migrationDiff
 		# Determine a migration strategy.
 		@migrationStrategy = 'CANT_MIGRATE'
 		if @indexStatus is 'UNKNOWN' or @indexStatus is 'NOT_ALIASED' or @indexStatus is 'NOT_MIGRATED'

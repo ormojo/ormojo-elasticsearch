@@ -54,6 +54,20 @@ makeModel = (corpus, modified) ->
 		backends: {
 			main: {
 				type: 'test'
+				filter: {
+					autocomplete_filter: {
+						type: 'edge_ngram',
+						min_gram: 1,
+						max_gram: 10
+					}
+				}
+				analyzer: {
+					autocomplete: {
+						type: 'custom',
+						tokenizer: 'standard',
+						filter: [ 'lowercase', 'autocomplete_filter' ]
+					}
+				}
 			}
 		}
 	})
@@ -83,8 +97,19 @@ describe 'migration tests: ', ->
 		mig = corpus.getBackend('main').getMigration()
 		mig.prepare()
 		.then ->
-			console.log mig.getMigrationPlan()
+			plan = mig.getMigrationPlan()
+			expect(plan[0].strategy).to.equal('CREATE')
 			mig.execute()
+
+	it 'should report repeated migration as unneded', ->
+		corpus = makeCorpus()
+		Widget = makeModel(corpus)
+		corpus.bindAllModels()
+		mig = corpus.getBackend('main').getMigration()
+		mig.prepare()
+		.then ->
+			plan = mig.getMigrationPlan()
+			expect(plan[0].strategy).to.equal('NOT_NEEDED')
 		.then ->
 			Widget.create({ name: 'wodget', qty: 50, tags: ['cool']})
 
@@ -95,7 +120,8 @@ describe 'migration tests: ', ->
 		mig = corpus.getBackend('main').getMigration()
 		mig.prepare()
 		.then ->
-			console.log mig.getMigrationPlan()
+			plan = mig.getMigrationPlan()
+			expect(plan[0].strategy).to.equal('REINDEX')
 			mig.execute()
 		.then ->
 			Widget.create({ name: 'whatsit', qty: 50000, tags:['unCool'], extra: '150'})
