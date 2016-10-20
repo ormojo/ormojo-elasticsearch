@@ -1,19 +1,6 @@
 { Migration } = require 'ormojo'
 lodash = require 'lodash'
 
-_flattenAliasResult = (result, soughtAlias) ->
-	if result?[soughtAlias]
-		{ status: 'INDEX_EXISTS' }
-	else
-		indicesWithSoughtAlias = []
-		for actualIndex, aliasData of (result or {})
-			if aliasData?.aliases?[soughtAlias]
-				indicesWithSoughtAlias.push(actualIndex)
-		if indicesWithSoughtAlias.length > 0
-			{ status: 'ALIAS_EXISTS', indices: indicesWithSoughtAlias }
-		else
-			{ status: 'DOESNT_EXIST' }
-
 _getMigrationCounter = (indexList) ->
 	maxn = 0
 	for index in indexList
@@ -23,92 +10,110 @@ _getMigrationCounter = (indexList) ->
 		n = parseInt(match[1]); if n > maxn then maxn = n
 	maxn
 
-_extractFirst = (object) -> return v for k,v of object
-
-
 #
 # Migration plan for a specific index. Determines if the index can
 # be migrated and how.
 #
 class MigrationPlan
 	constructor: (@backend, @index) ->
-		@targetMappings = @index.generateMappings()
+		@targetSettings = {
+			mappings: @index.generateMappings()
+			settings: {
+				analysis: {}
+			}
+		}
 
-	getTargetMappings: -> @targetMappings
+	getTargetSettings: -> @targetSettings
 
 	prepare: ->
-		@backend.corpus.Promise.all([@getMappings(), @getAliases()])
+		@getIndex()
 		.then =>
 			@finalChecks()
 
-	getMappings: ->
-		@backend.es.indices.getMapping({
+	getIndex: ->
+		@indexStatus = 'UNKNOWN'
+		@backend.es.indices.get({
 			index: @index.name
 			ignore: [404]
 		})
 		.then (result) =>
-			@backend.corpus.log.trace 'indices.getMapping', result
-			rst = _extractFirst(result)?.mappings
-			@currentMappings = rst or {}
-
-	getAliases: ->
-		@backend.es.indices.getAliases({
-			index: @index.name
-			name: '*'
-		})
-		.then (result) =>
-			flat = _flattenAliasResult(result, @index.name)
-			if flat.status is 'DOESNT_EXIST'
-				@migrationStrategy = 'CREATE'
-				@migrationCounter = 1
-			else if flat.status is 'ALIAS_EXISTS'
-				n = _getMigrationCounter(flat.indices)
-				if n is null
-					@migrationStrategy = 'CANT_MIGRATE'
-					@reason = 'Alias points to unmigrated index'
-				else
-					@migrationStrategy = 'REINDEX'
-					@migrationCounter = n
+			@backend.corpus.log.trace 'es.indices.get <', result
+			# Check for missing index.
+			if result.error
+				if result.status is 404 then @indexStatus = 'DOESNT_EXIST'
+				return
+			# Check for unaliased index which can't be migrated
+			if result[@index.name]
+				@indexStatus = 'NOT_ALIASED'
+				return
+			# Check for highest-numbered automigrated index
+			matchingIndices = (k for k,v of result)
+			n = _getMigrationCounter(matchingIndices)
+			if n is null
+				@indexStatus = 'NOT_MIGRATED'
+				return
 			else
-				@migrationStrategy = 'CANT_MIGRATE'
-				@reason = 'Index is not aliased.'
+				@indexStatus = 'AUTOMIGRATED'
+				@migrationCounter = n
+				@mostRecentIndex = "#{@index.name}_ormojo#{n}"
+			# Get details of most recent index
+			details = result[@mostRecentIndex]
+			@currentSettings = {
+				mappings: details.mappings
+				settings: {
+					analysis: details.settings?.analysis or {}
+				}
+			}
 
 	finalChecks: ->
 		# If mappings are the same, migration is unnecessary.
-		if lodash.isEqual(@currentMappings, @targetMappings)
+		if lodash.isEqual(@currentSettings, @targetSettings)
 			@migrationStrategy = 'NOT_NEEDED'
 			return
+		# Determine a migration strategy.
+		@migrationStrategy = 'CANT_MIGRATE'
+		if @indexStatus is 'UNKNOWN' or @indexStatus is 'NOT_ALIASED' or @indexStatus is 'NOT_MIGRATED'
+			@reason = 'Index cannot be automigrated.'
+		else if @indexStatus is 'DOESNT_EXIST'
+			@migrationStrategy = 'CREATE'
+		else if @indexStatus is 'AUTOMIGRATED'
+			@migrationStrategy = 'REINDEX'
 
 	executeCreateStrategy: ->
 		if @migrationStrategy isnt 'CREATE' then throw new Error('executeCreateStrategy() called in invalid state')
 		aliases = {}
 		aliases[@index.name] = {}
+		body = Object.assign({}, @targetSettings, { aliases })
+		@backend.corpus.log.trace 'es.indices.create >', body
 		@backend.corpus.Promise.resolve(
 			@backend.es.indices.create({
-				index: "#{@index.name}_ormojo#{@migrationCounter}"
-				body: {
-					mappings: @targetMappings
-					aliases
-				}
+				index: "#{@index.name}_ormojo1"
+				body
 			})
 		)
+		.then (result) =>
+			@backend.corpus.log.trace 'es.indices.create <', result
+			result
 
 	executeReindexStrategy: ->
 		if @migrationStrategy isnt 'REINDEX' then throw new Error('executeReindexStrategy() called in invalid state')
 		prevIndex = "#{@index.name}_ormojo#{@migrationCounter}"
 		nextIndex = "#{@index.name}_ormojo#{@migrationCounter + 1}"
 		alias = "#{@index.name}"
+		@backend.corpus.log.trace 'es.indices.create >', @targetSettings
 		@backend.corpus.Promise.resolve(
 			@backend.es.indices.create({
 				index: nextIndex
-				body: {	mappings: @targetMappings }
+				body: @targetSettings
 			})
 		)
 		.then (result) =>
-			console.log "indices.create", result
+			@backend.corpus.log.trace 'es.indices.create <', result
+			@backend.corpus.log.trace 'es.indices.flush >'
 			@backend.es.indices.flush({ index: prevIndex })
 		.then (result) =>
-			console.log "indices.flush", result
+			@backend.corpus.log.trace 'es.indices.flush <', result
+			@backend.corpus.log.trace 'es.reindex >'
 			@backend.es.reindex({
 				refresh: true
 				waitForCompletion: true
@@ -118,7 +123,8 @@ class MigrationPlan
 				}
 			})
 		.then (result) =>
-			console.log "reindex", result
+			@backend.corpus.log.trace 'es.reindex <', result
+			@backend.corpus.log.trace 'es.updateAliases >'
 			@backend.es.indices.updateAliases({
 				body: {
 					actions: [
@@ -127,8 +133,8 @@ class MigrationPlan
 					]
 				}
 			})
-		.then (result) ->
-			console.log "indices.updateAliases", result
+		.then (result) =>
+			@backend.corpus.log.trace 'es.updateAliases <', result
 
 	execute: ->
 		if @migrationStrategy is 'REINDEX'
@@ -157,8 +163,8 @@ class ElasticsearchMigration extends Migration
 			{
 				strategy: plan.migrationStrategy
 				index: plan.index.name
-				currentMappings: plan.currentMappings
-				targetMappings: plan.targetMappings
+				currentSettings: plan.currentSettings
+				targetSettings: plan.targetSettings
 			}
 		plans
 
