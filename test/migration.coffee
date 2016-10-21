@@ -24,6 +24,7 @@ makeModel = (corpus, modified) ->
 	fields = {
 		id: { type: ormojo.STRING }
 		name: { type: ormojo.STRING, default: 'nameless' }
+		timestamp: { type: ormojo.DATE, default: -> new Date }
 		url: {
 			type: ormojo.STRING
 			elasticsearch: {

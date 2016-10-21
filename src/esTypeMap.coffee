@@ -2,17 +2,17 @@ ormojo = require 'ormojo'
 
 esTypeMap = (orType) ->
 	if orType is ormojo.STRING
-		'string'
+		{ type: 'string' }
 	else if orType is ormojo.INTEGER
-		'long'
+		{ type: 'long' }
 	else if orType is ormojo.BOOLEAN
-		'boolean'
+		{ type: 'boolean' }
 	else if orType is ormojo.FLOAT
-		'double'
+		{ type: 'double' }
 	else if orType is ormojo.OBJECT
-		'object'
+		{ type: 'object' }
 	else if orType is ormojo.DATE
-		'date'
+		{ type: 'date', format: 'strict_date_optional_time||epoch_millis' }
 	else if (match = /^ARRAY\((.*)\)$/.exec(orType))
 		esTypeMap(match[1])
 	else

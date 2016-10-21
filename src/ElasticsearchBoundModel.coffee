@@ -21,7 +21,10 @@ class ElasticsearchBoundModel extends BoundModel
 		props = {}
 		for k, field of @getFields() when k isnt 'id'
 			mapping = field.spec.elasticsearch?.mapping or {}
-			mapping.type = esTypeMap(field.spec.type)
+			# Merge missing keys from typemap defaults
+			for mk,mv of esTypeMap(field.spec.type)
+				if not (mk of mapping) then mapping[mk] = mv
+
 			props[field.getBackendFieldName()] = mapping
 		props
 
