@@ -106,6 +106,8 @@ class ElasticsearchBackend extends Backend
 			type: instance._type or boundModel.getDefaultType()
 			body: instance.dataValues
 		}
+		# Allow creation with specified id.
+		if instance.id then rq.id = instance.id.toString()
 		@corpus.log.trace "es.create >", rq
 		@corpus.Promise.resolve( @es.create(rq) )
 		.then (rst) =>
