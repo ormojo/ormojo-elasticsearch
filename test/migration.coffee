@@ -5,6 +5,7 @@ ormojo = require 'ormojo'
 Blackbird = require 'blackbird-promises'
 
 makeCorpus = ->
+	logger = if 'trace' in process.argv then console.log.bind(console) else ->
 	new ormojo.Corpus({
 		Promise: {
 			resolve: (x) -> Blackbird.resolve(x)
@@ -12,7 +13,7 @@ makeCorpus = ->
 			all: (x) -> Blackbird.all(x)
 		}
 		log: {
-			trace: console.log.bind(console)
+			trace: logger
 		}
 		backends: {
 			'main': new es_backend(es_client)

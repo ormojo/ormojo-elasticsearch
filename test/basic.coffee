@@ -6,6 +6,7 @@ Blackbird = require 'blackbird-promises'
 ESQ = require 'esq'
 
 makeCorpus = ->
+	logger = if 'trace' in process.argv then console.log.bind(console) else ->
 	c = new ormojo.Corpus({
 		Promise: {
 			resolve: (x) -> Blackbird.resolve(x)
@@ -13,7 +14,7 @@ makeCorpus = ->
 			all: (x) -> Blackbird.all(x)
 		}
 		log: {
-			trace: console.log.bind(console)
+			trace: logger
 		}
 		backends: {
 			'main': new es_backend(es_client)
@@ -45,6 +46,9 @@ makeCorpus = ->
 	{ corpus: c, Widget }
 
 describe 'basic tests: ', ->
+	it 'should test cli args', ->
+		console.log process.argv
+
 	it 'should delete all indices from prior tests', ->
 		es_client.indices.delete({
 			index: ['widget_ormojo*', 'widget']
@@ -66,14 +70,29 @@ describe 'basic tests: ', ->
 		testThing = null
 		awidget.save()
 		.then (thing) ->
+			console.log 'get:', thing.get()
+			console.log 'dataValues:', thing.dataValues
 			testThing = thing
 			Widget.findById(thing.id)
 		.then (anotherThing) ->
+			console.log 'get:', anotherThing.get()
+			console.log 'dataValues:', anotherThing.dataValues
 			expect(anotherThing.get()).to.deep.equal(testThing.get())
 			Widget.findById([testThing.id])
 		.then (arrayOfThings) ->
 			expect(arrayOfThings[0].get()).to.deep.equal(testThing.get())
 
+	it 'should create by specific id', ->
+		{ Widget } = makeCorpus()
+		awidget = Widget.create()
+		awidget.name = '12345'
+		awidget.id = 12345
+
+		awidget.save()
+		.then ->
+			Widget.findById(12345)
+		.then (rst) ->
+			expect(rst.name).to.equal('12345')
 
 	it 'shouldnt find documents that arent there', ->
 		{ Widget } = makeCorpus()
