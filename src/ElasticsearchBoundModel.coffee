@@ -1,6 +1,12 @@
 { BoundModel, createStandardInstanceClassForBoundModel } = require 'ormojo'
 esTypeMap = require './esTypeMap'
 
+_idGetter = -> @_id
+_idSetter = (k,v) ->
+	if @_id? then throw new Error('ElasticsearchInstance: cannot reassign `id` - create a new Instance instead')
+	@_id = v
+
+
 class ElasticsearchBoundModel extends BoundModel
 	constructor: (model, backend) ->
 		super(model, backend)
@@ -9,6 +15,10 @@ class ElasticsearchBoundModel extends BoundModel
 		@esIndex = (@spec.backend.index or @name).toLowerCase()
 		@esType = (@spec.backend.type).toLowerCase()
 		@instanceClass = createStandardInstanceClassForBoundModel(@)
+
+		# Custom getter and setter for id.
+		@getters['id'] = _idGetter
+		@setters['id'] = _idSetter
 
 	createInstance: (dataValues) ->
 		new @instanceClass(@, dataValues)

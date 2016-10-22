@@ -29,7 +29,8 @@ class ElasticsearchBackend extends Backend
 		if instance
 			Object.assign(instance.dataValues, esData._source)
 		else
-			instance = @createRawInstance(boundModel, Object.assign({ id: esData._id}, esData._source))
+			instance = @createRawInstance(boundModel, esData._source)
+		instance._id = esData._id
 		instance._index = esData._index
 		instance._version = esData._version
 		instance._type = esData._type
@@ -107,12 +108,13 @@ class ElasticsearchBackend extends Backend
 			body: instance.dataValues
 		}
 		# Allow creation with specified id.
-		if instance.id then rq.id = instance.id.toString()
+		if (id = instance.id) then rq.id = id
+
 		@corpus.log.trace "es.create >", rq
 		@corpus.Promise.resolve( @es.create(rq) )
 		.then (rst) =>
 			@corpus.log.trace "es.create <", rst
-			instance.id = rst._id
+			instance._id = rst._id
 			@_deserialize(boundModel, rst, instance)
 			delete instance.isNewRecord
 			instance
