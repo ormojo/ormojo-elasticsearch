@@ -1,8 +1,8 @@
 { Backend, BoundModel, Util, createStandardInstanceClassForBoundModel } = require 'ormojo'
-ElasticsearchCursor = require './ElasticsearchCursor'
-ElasticsearchBoundModel = require './ElasticsearchBoundModel'
+ElasticsearchCursor = require './Cursor'
+ElasticsearchBoundModel = require './BoundModel'
 { ElasticsearchIndex, ElasticsearchIndices } = require './ElasticsearchIndex'
-ElasticsearchMigration = require './ElasticsearchMigration'
+ElasticsearchMigration = require './Migration'
 ResultSet = require './ResultSet'
 
 class ElasticsearchBackend extends Backend
