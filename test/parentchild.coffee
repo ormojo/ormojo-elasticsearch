@@ -24,6 +24,7 @@ makeCorpus = ->
 		name: 'Widget'
 		fields: {
 			id: { type: ormojo.STRING }
+			value: { type: ormojo.STRING }
 		}
 	})
 
@@ -31,6 +32,7 @@ makeCorpus = ->
 		name: 'Kidget'
 		fields: {
 			id: { type: ormojo.STRING }
+			value: { type: ormojo.STRING }
 		}
 	})
 
@@ -39,10 +41,8 @@ makeCorpus = ->
 		type: 'widget'
 	})
 
-	BKidget = Kidget.forBackend('main', {
-		index: 'widget',
+	BKidget = BWidget.bindChildModel(Kidget, {
 		type: 'kidget',
-		parentBoundModel: BWidget
 	})
 
 	{ Widget: BWidget, Kidget: BKidget, corpus }
@@ -62,8 +62,10 @@ describe 'migration tests: ', ->
 
 	it 'should make a widget and a kidget', ->
 		{ corpus, Widget, Kidget } = makeCorpus()
+		parent = null
 		Widget.create({})
 		.then (widg) ->
-			Kidget.createChild(widg, {})
+			parent = widg
+			Kidget.create(widg, {})
 		.then (kidg) ->
-			Kidget.findById(kidg.id)
+			Kidget.findById(parent, kidg.id)

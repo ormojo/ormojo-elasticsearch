@@ -23,28 +23,31 @@ class ESBoundModel extends BoundModel
 	getIndex: -> @esIndex
 	getDefaultType: -> @esType
 
-	createChild: (parent, data) ->
-		if not @spec.parentBoundModel
-			throw new Error('Cannot create child; no parentBoundModel was set')
+	bindChildModel: (model, bindingOptions) ->
+		bindingOptions = bindingOptions or {}
+		# Child index must be the same as this index.
+		bindingOptions.index = @getIndex()
+		bindingOptions.parentBoundModel = @
+		@backend.bindChildModel(model, bindingOptions)
 
-		instance = @_createInstance()
-		instance.isNewRecord = true
-		instance.__applyDefaults()
-		instance._parent = parent.id
-		if data isnt undefined
-			instance.set(data)
-			instance.save()
-		else
-			instance
+	_findById: (id) ->
+		@backend.api.findInstanceById(@, @backend._deserialize, @backend, id)
+
+	_findByIds: (ids) ->
+		@backend.api.findByIds(@getIndex(), @getDefaultType(), ids)
+		.then (rst) =>
+			# Comprehense over returned entities.
+			for entity in (rst?.docs or [])
+				if not (entity?.found) then undefined else @backend._deserialize(@, entity)
+
+	findById: (id) ->
+		if Array.isArray(id) then @_findByIds(id) else @_findById(id)
 
 	# Generate Elasticsearch mapping properties
 	generateMapping: ->
 		m = {}
-		if @spec.parentBoundModel
-			m['_parent'] = { type: @spec.parentBoundModel.getDefaultType() }
-			m['_routing'] = { required: true }
-
 		m.properties = props = {}
+
 		for k, field of @getFields() when k isnt 'id'
 			mapping = field.spec.elasticsearch?.mapping or {}
 			# Merge missing keys from typemap defaults

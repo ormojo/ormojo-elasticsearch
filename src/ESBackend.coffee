@@ -1,6 +1,7 @@
 { Backend, BoundModel, Util, createStandardInstanceClassForBoundModel } = require 'ormojo'
 ESCursor = require './ESCursor'
 ESBoundModel = require './ESBoundModel'
+ESChildModel = require './ESChildModel'
 { ESIndex, ESIndices } = require './ESIndex'
 ESMigration = require './ESMigration'
 ESResultSet = require './ESResultSet'
@@ -13,11 +14,16 @@ class ESBackend extends Backend
 	initialize: ->
 		@api = makeESAPI(@es, @corpus.log, @corpus.Promise)
 
-	bindModel: (model, bindingOptions) ->
-		# Basic checks
-		bm = new ESBoundModel(model, @, bindingOptions)
+	_bindModel: (clazz, model, bindingOptions) ->
+		bm = new clazz(model, @, bindingOptions)
 		@indices.addBoundModel(bm)
 		bm
+
+	bindModel: (model, bindingOptions) ->
+		@_bindModel(ESBoundModel, model, bindingOptions)
+
+	bindChildModel: (childModel, bindingOptions) ->
+		@_bindModel(ESChildModel, childModel, bindingOptions)
 
 	getMigration: ->
 		new ESMigration(@corpus, @)
@@ -28,27 +34,17 @@ class ESBackend extends Backend
 			Object.assign(instance.dataValues, esData._source)
 		else
 			instance = boundModel._createInstance(esData._source)
-		instance._id = esData._id
-		instance._index = esData._index
-		instance._version = esData._version
-		instance._type = esData._type
-		instance._score = esData._score
+		if esData._id then instance._id = esData._id
+		if esData._index then instance._index = esData._index
+		if esData._version then instance._version = esData._version
+		if esData._type then instance._type = esData._type
+		if esData._score then instance._score = esData._score
+		if esData._routing then instance._routing = esData._routing
+		if esData._parent then instance._parent = esData._parent
 		instance._clearChanges()
 		instance
 
 	################################ FINDING
-	_findById: (boundModel, id) ->
-		@api.findInstanceById(boundModel, @_deserialize, @, id)
-
-	_findByIds: (boundModel, ids) ->
-		@api.findByIds(boundModel.getIndex(), boundModel.getDefaultType(), ids)
-		.then (rst) =>
-			# Comprehense over returned entities.
-			for entity in (rst?.docs or [])
-				if not (entity?.found) then undefined else @_deserialize(boundModel, entity)
-
-	findById: (boundModel, id) ->
-		if Array.isArray(id) then @_findByIds(boundModel, id) else @_findById(boundModel, id)
 
 	find: (boundModel, options) ->
 		@api.findRaw(boundModel.getIndex(), boundModel.getDefaultType(), { size: 1, body: options.elasticsearch_query })
