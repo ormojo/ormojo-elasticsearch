@@ -4,10 +4,14 @@ ESBoundModel = require './ESBoundModel'
 { ESIndex, ESIndices } = require './ESIndex'
 ESMigration = require './ESMigration'
 ESResultSet = require './ESResultSet'
+{ makeESAPI } = require './ESAPI'
 
 class ESBackend extends Backend
 	constructor: (@es) ->
 		@indices = new ESIndices(@)
+
+	initialize: ->
+		@api = makeESAPI(@es, @corpus.log, @corpus.Promise)
 
 	bindModel: (model, bindingOptions) ->
 		# Basic checks
@@ -19,9 +23,6 @@ class ESBackend extends Backend
 		new ESMigration(@corpus, @)
 
 	################################ CREATION
-	createRawInstance: (boundModel, dataValues) ->
-		boundModel._createInstance(dataValues)
-
 	_deserialize: (boundModel, esData, instance) ->
 		if instance
 			Object.assign(instance.dataValues, esData._source)
@@ -36,19 +37,13 @@ class ESBackend extends Backend
 
 	################################ FINDING
 	_findById: (boundModel, id) ->
-		rq = { id, index: boundModel.getIndex(), type: boundModel.getDefaultType(), ignore: [404] }
-		@corpus.log.trace "es.get >", rq
-		@corpus.Promise.resolve( @es.get(rq) )
+		@api.findById(boundModel.getIndex(), boundModel.getDefaultType(), id)
 		.then (rst) =>
-			@corpus.log.trace "es.get <", rst
 			if not rst.found then undefined else @_deserialize(boundModel, rst)
 
 	_findByIds: (boundModel, ids) ->
-		rq = { index: boundModel.getIndex(), body: { ids } }
-		@corpus.log.trace "es.mget >", rq
-		@corpus.Promise.resolve( @es.mget(rq) )
+		@api.findByIds(boundModel.getIndex(), boundModel.getDefaultType(), ids)
 		.then (rst) =>
-			@corpus.log.trace "es.mget <", rst
 			# Comprehense over returned entities.
 			for entity in (rst?.docs or [])
 				if not (entity?.found) then undefined else @_deserialize(boundModel, entity)
@@ -57,26 +52,15 @@ class ESBackend extends Backend
 		if Array.isArray(id) then @_findByIds(boundModel, id) else @_findById(boundModel, id)
 
 	find: (boundModel, options) ->
-		rq = {
-			index: boundModel.getIndex()
-			body: options.elasticsearch_query
-			size: 1
-			version: true
-		}
-		@corpus.log.trace "es.search >", rq
-		@corpus.Promise.resolve( @es.search(rq) )
+		@api.findRaw(boundModel.getIndex(), boundModel.getDefaultType(), { size: 1, body: options.elasticsearch_query })
 		.then (rst) =>
-			@corpus.log.trace "es.search <", rst
 			if (not rst) or (not rst.hits) or (rst.hits.total is 0)
 				undefined
 			else
 				@_deserialize(boundModel, rst.hits.hits[0])
 
 	findAll: (boundModel, options) ->
-		searchParams = {
-			index: boundModel.getIndex()
-			version: true
-		}
+		searchParams = { }
 		# Determine query
 		searchParams.body = if options.elasticsearch_query then options.elasticsearch_query else options.cursor?.query
 		# Determine search boundaries
@@ -87,10 +71,8 @@ class ESBackend extends Backend
 			if options.offset then searchParams.from = options.offset
 			if options.limit then searchParams.size = options.limit
 
-		@corpus.log.trace "es.search >", searchParams
-		@corpus.Promise.resolve( @es.search(searchParams) )
+		@api.findRaw(boundModel.getIndex(), boundModel.getDefaultType(), searchParams)
 		.then (rst) =>
-			@corpus.log.trace "es.search <", rst
 			if (not rst) or (not rst.hits)
 				new ESResultSet([], 0, 0, null, 0)
 			else
@@ -99,19 +81,13 @@ class ESBackend extends Backend
 
 	################################ SAVING
 	_saveNewInstance: (instance, boundModel) ->
-		rq = {
-			index: instance._index or boundModel.getIndex()
-			type: instance._type or boundModel.getDefaultType()
-			body: instance.dataValues
-		}
-		if (parent = instance._parent) then rq.parent = parent
+		opts = { }
+		if (parent = instance._parent) then opts.parent = parent
 		# Allow creation with specified id.
-		if (id = instance.id) then rq.id = id
+		if (id = instance.id) then opts.id = id
 
-		@corpus.log.trace "es.create >", rq
-		@corpus.Promise.resolve( @es.create(rq) )
+		@api.create(instance._index or boundModel.getIndex(), instance._type or boundModel.getDefaultType(), instance.dataValues, opts)
 		.then (rst) =>
-			@corpus.log.trace "es.create <", rst
 			instance._id = rst._id
 			@_deserialize(boundModel, rst, instance)
 			delete instance.isNewRecord
@@ -122,17 +98,10 @@ class ESBackend extends Backend
 		delta = Util.getDelta(instance)
 		if not delta then return @corpus.Promise.resolve(instance)
 		# Punt to ES
-		rq = {
-			index: instance._index or boundModel.getIndex()
-			type: instance._type or boundModel.getDefaultType()
-			id: instance.id
-			body: { doc: delta }
-		}
-		if (parent = instance._parent) then rq.parent = parent
-		@corpus.log.trace "es.update >", rq
-		@corpus.Promise.resolve( @es.update(rq) )
+		opts = { }
+		if (parent = instance._parent) then opts.parent = parent
+		@api.update(instance._index or boundModel.getIndex(), instance._type or boundModel.getDefaultType(), instance.id, delta, opts)
 		.then (rst) =>
-			@corpus.log.trace "es.update <", rst
 			@_deserialize(boundModel, rst, instance)
 			instance
 
@@ -143,16 +112,8 @@ class ESBackend extends Backend
 			@_saveOldInstance(instance, boundModel)
 
 	destroy: (instance, boundModel) ->
-		rq = {
-			index: instance._index or boundModel.getIndex()
-			type: instance._type or boundModel.getDefaultType()
-			id: instance.id
-		}
-		if (parent = instance._parent) then rq.parent = parent
-		@corpus.log.trace "es.delete >", rq
-		@corpus.Promise.resolve( @es.delete(rq) )
-		.then (rst) =>
-			@corpus.log.trace "es.delete <", rst
-			if rst?.found then true else false
+		opts = { }
+		if (parent = instance._parent) then opts.parent = parent
+		@api.delete(instance._index or boundModel.getIndex(), instance._type or boundModel.getDefaultType(), instance.id, opts)
 
 module.exports = ESBackend
