@@ -3,6 +3,7 @@
 *.sublime-workspace
 /logs
 npm-debug.log
+/coverage
 
 .v8flags.*
 .npm/
