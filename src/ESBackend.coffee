@@ -33,13 +33,12 @@ class ESBackend extends Backend
 		instance._version = esData._version
 		instance._type = esData._type
 		instance._score = esData._score
+		instance._clearChanges()
 		instance
 
 	################################ FINDING
 	_findById: (boundModel, id) ->
-		@api.findById(boundModel.getIndex(), boundModel.getDefaultType(), id)
-		.then (rst) =>
-			if not rst.found then undefined else @_deserialize(boundModel, rst)
+		@api.findInstanceById(boundModel, @_deserialize, @, id)
 
 	_findByIds: (boundModel, ids) ->
 		@api.findByIds(boundModel.getIndex(), boundModel.getDefaultType(), ids)
@@ -81,29 +80,10 @@ class ESBackend extends Backend
 
 	################################ SAVING
 	_saveNewInstance: (instance, boundModel) ->
-		opts = { }
-		if (parent = instance._parent) then opts.parent = parent
-		# Allow creation with specified id.
-		if (id = instance.id) then opts.id = id
-
-		@api.create(instance._index or boundModel.getIndex(), instance._type or boundModel.getDefaultType(), instance.dataValues, opts)
-		.then (rst) =>
-			instance._id = rst._id
-			@_deserialize(boundModel, rst, instance)
-			delete instance.isNewRecord
-			instance
+		@api.createFromInstance(instance, @_deserialize, @)
 
 	_saveOldInstance: (instance, boundModel) ->
-		# Determine data changes to be saved - early out if no changes
-		delta = Util.getDelta(instance)
-		if not delta then return @corpus.Promise.resolve(instance)
-		# Punt to ES
-		opts = { }
-		if (parent = instance._parent) then opts.parent = parent
-		@api.update(instance._index or boundModel.getIndex(), instance._type or boundModel.getDefaultType(), instance.id, delta, opts)
-		.then (rst) =>
-			@_deserialize(boundModel, rst, instance)
-			instance
+		@api.updateInstance(instance, @_deserialize, @)
 
 	save: (instance, boundModel) ->
 		if instance.isNewRecord
@@ -112,8 +92,6 @@ class ESBackend extends Backend
 			@_saveOldInstance(instance, boundModel)
 
 	destroy: (instance, boundModel) ->
-		opts = { }
-		if (parent = instance._parent) then opts.parent = parent
-		@api.delete(instance._index or boundModel.getIndex(), instance._type or boundModel.getDefaultType(), instance.id, opts)
+		@api.destroyInstance(instance)
 
 module.exports = ESBackend
