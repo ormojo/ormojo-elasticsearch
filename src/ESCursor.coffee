@@ -1,10 +1,10 @@
 { Cursor } = require 'ormojo'
 
-class ElasticsearchCursor extends Cursor
+class ESCursor extends Cursor
 	constructor: (@query) ->
 		super()
 
 	setFromOffset: (@offset, @limit, @total) ->
 		@
 
-module.exports = ElasticsearchCursor
+module.exports = ESCursor

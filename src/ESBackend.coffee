@@ -1,35 +1,32 @@
 { Backend, BoundModel, Util, createStandardInstanceClassForBoundModel } = require 'ormojo'
-ElasticsearchCursor = require './Cursor'
-ElasticsearchBoundModel = require './BoundModel'
-{ ElasticsearchIndex, ElasticsearchIndices } = require './ElasticsearchIndex'
-ElasticsearchMigration = require './Migration'
-ResultSet = require './ResultSet'
+ESCursor = require './ESCursor'
+ESBoundModel = require './ESBoundModel'
+{ ESIndex, ESIndices } = require './ESIndex'
+ESMigration = require './ESMigration'
+ESResultSet = require './ESResultSet'
 
-class ElasticsearchBackend extends Backend
+class ESBackend extends Backend
 	constructor: (@es) ->
-		@boundModels = {}
-		@indices = new ElasticsearchIndices(@)
+		@indices = new ESIndices(@)
 
-	bindModel: (model) ->
+	bindModel: (model, bindingOptions) ->
 		# Basic checks
-		bm = new ElasticsearchBoundModel(model, @)
-		if @boundModels[bm.name] then throw new Error("ElasticsearchBackend: Cannot bind two models with the same name (`#{bm.name}`)")
-		@boundModels[bm.name] = bm
+		bm = new ESBoundModel(model, @, bindingOptions)
 		@indices.addBoundModel(bm)
 		bm
 
 	getMigration: ->
-		new ElasticsearchMigration(@corpus, @)
+		new ESMigration(@corpus, @)
 
 	################################ CREATION
 	createRawInstance: (boundModel, dataValues) ->
-		boundModel.createInstance(dataValues)
+		boundModel._createInstance(dataValues)
 
 	_deserialize: (boundModel, esData, instance) ->
 		if instance
 			Object.assign(instance.dataValues, esData._source)
 		else
-			instance = @createRawInstance(boundModel, esData._source)
+			instance = boundModel._createInstance(esData._source)
 		instance._id = esData._id
 		instance._index = esData._index
 		instance._version = esData._version
@@ -39,7 +36,7 @@ class ElasticsearchBackend extends Backend
 
 	################################ FINDING
 	_findById: (boundModel, id) ->
-		rq = { id, index: boundModel.getIndex(), type: '_all', ignore: [404] }
+		rq = { id, index: boundModel.getIndex(), type: boundModel.getDefaultType(), ignore: [404] }
 		@corpus.log.trace "es.get >", rq
 		@corpus.Promise.resolve( @es.get(rq) )
 		.then (rst) =>
@@ -95,10 +92,10 @@ class ElasticsearchBackend extends Backend
 		.then (rst) =>
 			@corpus.log.trace "es.search <", rst
 			if (not rst) or (not rst.hits)
-				new ResultSet([], 0, 0, null, 0)
+				new ESResultSet([], 0, 0, null, 0)
 			else
 				data = (@_deserialize(boundModel, x) for x in rst.hits.hits)
-				new ResultSet(data, rst.hits.total, searchParams.from, searchParams.body, rst.hits.max_score)
+				new ESResultSet(data, rst.hits.total, searchParams.from, searchParams.body, rst.hits.max_score)
 
 	################################ SAVING
 	_saveNewInstance: (instance, boundModel) ->
@@ -107,6 +104,7 @@ class ElasticsearchBackend extends Backend
 			type: instance._type or boundModel.getDefaultType()
 			body: instance.dataValues
 		}
+		if (parent = instance._parent) then rq.parent = parent
 		# Allow creation with specified id.
 		if (id = instance.id) then rq.id = id
 
@@ -130,6 +128,7 @@ class ElasticsearchBackend extends Backend
 			id: instance.id
 			body: { doc: delta }
 		}
+		if (parent = instance._parent) then rq.parent = parent
 		@corpus.log.trace "es.update >", rq
 		@corpus.Promise.resolve( @es.update(rq) )
 		.then (rst) =>
@@ -149,10 +148,11 @@ class ElasticsearchBackend extends Backend
 			type: instance._type or boundModel.getDefaultType()
 			id: instance.id
 		}
+		if (parent = instance._parent) then rq.parent = parent
 		@corpus.log.trace "es.delete >", rq
 		@corpus.Promise.resolve( @es.delete(rq) )
 		.then (rst) =>
 			@corpus.log.trace "es.delete <", rst
 			if rst?.found then true else false
 
-module.exports = ElasticsearchBackend
+module.exports = ESBackend

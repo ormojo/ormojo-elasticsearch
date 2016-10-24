@@ -1,5 +1,5 @@
 # Represents an index in Elasticsearch.
-class ElasticsearchIndex
+class ESIndex
 	constructor: (@backend, @name) ->
 		@boundModels = []
 		@types = {}
@@ -15,9 +15,7 @@ class ElasticsearchIndex
 	generateMappings: ->
 		mappings = {}
 		for type, boundModel of @types
-			mappings[type] = {
-				properties: boundModel.generateMappingProps()
-			}
+			mappings[type] = boundModel.generateMapping()
 		mappings
 
 	generateAnalysis: ->
@@ -29,19 +27,17 @@ class ElasticsearchIndex
 		analysis
 
 # Represents the collection of indices associated with a backend.
-class ElasticsearchIndices
+class ESIndices
 	constructor: (@backend) ->
 		@indices = {}
 
 	addBoundModel: (bm) ->
 		indexName = bm.getIndex()
 		if not @indices[indexName]
-			@indices[indexName] = new ElasticsearchIndex(@backend, indexName)
+			@indices[indexName] = new ESIndex(@backend, indexName)
 		@indices[indexName].addBoundModel(bm)
 
 	getIndices: ->
 		@indices
 
-
-
-module.exports = { ElasticsearchIndex, ElasticsearchIndices }
+module.exports = { ESIndex, ESIndices }

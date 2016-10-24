@@ -155,7 +155,7 @@ class MigrationPlan
 		else
 			@backend.corpus.Promise.resolve()
 
-class ElasticsearchMigration extends Migration
+class ESMigration extends Migration
 	constructor: (corpus, backend) ->
 		super(corpus, backend)
 		@plans = {}
@@ -181,4 +181,4 @@ class ElasticsearchMigration extends Migration
 		promises = (plan.execute() for name,plan of @plans)
 		@corpus.Promise.all(promises)
 
-module.exports = ElasticsearchMigration
+module.exports = ESMigration

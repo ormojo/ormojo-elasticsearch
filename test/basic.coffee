@@ -19,11 +19,10 @@ makeCorpus = ->
 		backends: {
 			'main': new es_backend(es_client)
 		}
-		defaultBackend: 'main'
 	})
 
 	Widget = c.createModel({
-		name: 'widget'
+		name: 'Widget'
 		fields: {
 			id: { type: ormojo.STRING }
 			name: { type: ormojo.STRING, default: 'nameless' }
@@ -36,14 +35,14 @@ makeCorpus = ->
 				}
 			}
 		}
-		backends: {
-			main: {
-				type: 'test'
-			}
-		}
 	})
 
-	{ corpus: c, Widget }
+	BoundWidget = Widget.forBackend('main', {
+		index: 'widget'
+		type: 'widget'
+	})
+
+	{ corpus: c, Widget: BoundWidget }
 
 describe 'basic tests: ', ->
 	it 'should test cli args', ->
@@ -57,7 +56,6 @@ describe 'basic tests: ', ->
 
 	it 'should create mapping', ->
 		{ corpus } = makeCorpus()
-		corpus.bindAllModels()
 		mig = corpus.getBackend('main').getMigration()
 		mig.prepare().then ->
 			mig.execute()

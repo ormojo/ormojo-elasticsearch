@@ -1,7 +1,7 @@
 { ResultSet } = require 'ormojo'
-Cursor = require './ElasticsearchCursor'
+Cursor = require './ESCursor'
 
-class ElasticsearchResultSet extends ResultSet
+class ESResultSet extends ResultSet
 	constructor: (data, @total, offset, searchBody, @maxScore = 0) ->
 		super()
 		@results = data or []
@@ -15,4 +15,4 @@ class ElasticsearchResultSet extends ResultSet
 
 	getMaxScore: -> @maxScore
 
-module.exports = ElasticsearchResultSet
+module.exports = ESResultSet
