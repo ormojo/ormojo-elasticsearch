@@ -6,7 +6,7 @@ Blackbird = require 'blackbird-promises'
 ESQ = require 'esq'
 
 makeCorpus = ->
-	logger = if 'trace' in process.argv then console.log.bind(console) else ->
+	logger = if true then console.log.bind(console) else ->
 	c = new ormojo.Corpus({
 		Promise: {
 			resolve: (x) -> Blackbird.resolve(x)
@@ -115,6 +115,31 @@ describe 'basic tests: ', ->
 			Widget.findById(id)
 		.then (x) ->
 			expect(x).to.equal(undefined)
+
+	it 'should CRUD', ->
+		{ Widget } = makeCorpus()
+		id = null
+		Widget.create({name: 'name1', qty: 1})
+		.then (widg) ->
+			id = widg.id
+			Widget.findById(widg.id)
+		.then (widg) ->
+			widg.name = 'name2'
+			widg.save()
+		.then (widg) ->
+			widg.destroy()
+
+	it 'should manage field deltas properly', ->
+		{ Widget } = makeCorpus()
+		id = null
+		Widget.create({name: 'name1', qty: 1})
+		.then (widg) ->
+			expect(widg.changed()).to.equal(false)
+			widg.name = 'name2'
+			expect(widg.changed()).to.deep.equal(['name'])
+			widg.save()
+		.then (widg) ->
+			expect(widg.changed()).to.equal(false)
 
 	it 'should find one by keyword', ->
 		{ Widget } = makeCorpus()
