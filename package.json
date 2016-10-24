@@ -1,9 +1,13 @@
 {
   "name": "ormojo-elasticsearch",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Elasticsearch driver for ormojo.",
   "main": "src/index.coffee",
   "scripts": {
+    "clean": "rm -rf js",
+    "build": "mkdir -p js && coffee -o js src/*.coffee",
+    "build_doc": "node_modules/.bin/codo src/",
+    "prepublish": "npm run clean && npm run build",
     "test": "node_modules/.bin/mocha --recursive --compilers coffee:coffee-script/register",
     "coverage": "node_modules/.bin/mocha --recursive --compilers coffee:coffee-script/register --require coffee-coverage/register-istanbul",
     "coverageReport": "node_modules/.bin/istanbul report"
