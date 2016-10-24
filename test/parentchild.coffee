@@ -63,9 +63,27 @@ describe 'migration tests: ', ->
 	it 'should make a widget and a kidget', ->
 		{ corpus, Widget, Kidget } = makeCorpus()
 		parent = null
-		Widget.create({})
+		Widget.create({ value: 'mom'})
 		.then (widg) ->
 			parent = widg
-			Kidget.create(widg, {})
+			Kidget.create(widg, { value: 'kid'})
 		.then (kidg) ->
+			expect(kidg.value).to.equal('kid')
 			Kidget.findById(parent, kidg.id)
+		.then (kidg) ->
+			expect(kidg._parent).to.equal(parent.id)
+			expect(kidg.value).to.equal('kid')
+
+	it 'should do CRUD on kidget', ->
+		{ corpus, Widget, Kidget } = makeCorpus()
+		parent = null
+		Widget.create({ value: 'mom'})
+		.then (widg) ->
+			parent = widg
+			Kidget.create(widg, { value: 'kid'})
+		.then (kidg) ->
+			kidg.value = 'child'
+			kidg.save()
+		.then (kidg) ->
+			expect(kidg.value).to.equal('child')
+			kidg.destroy()
