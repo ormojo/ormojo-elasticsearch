@@ -87,3 +87,20 @@ describe 'migration tests: ', ->
 		.then (kidg) ->
 			expect(kidg.value).to.equal('child')
 			kidg.destroy()
+
+	it 'should do CRUD ops by string id instead of object', ->
+		{ corpus, Widget, Kidget } = makeCorpus()
+		parent = null
+		Widget.create({ value: 'mom'})
+		.then (widg) ->
+			parent = widg
+			Kidget.create(widg.id, { value: 'kid'})
+		.then (kidg) ->
+			expect(kidg.value).to.equal('kid')
+			Kidget.findById(parent.id, kidg.id)
+		.then (kidg) ->
+			expect(kidg._parent).to.equal(parent.id)
+			expect(kidg.value).to.equal('kid')
+			Kidget.destroyById(parent.id, kidg.id)
+		.then (rst) ->
+			expect(rst).to.equal(true)

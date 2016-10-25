@@ -8,26 +8,28 @@ class ESChildModel extends ESBoundModel
 		if not (@parentBoundModel instanceof ESBoundModel)
 			throw new Error("ESChildModel(`#{@name}`): parentBoundModel must be an ESBoundModel.")
 
-	findById: (parent, id) ->
+	_checkParent: (parent) ->
 		if parent instanceof Instance
-			parentId = parent.id
+			return parent.id
 		else if (typeof(parent) is 'string' or typeof(parent) is 'number')
-			parentId = parent.toString()
+			return parent.toString()
 		else
 			throw new Error("ESChildModel(`#{@name}`): must provide parent object or ID as first argument")
+
+	findById: (parent, id) ->
+		parentId = @_checkParent(parent)
 
 		if Array.isArray(id)
 			throw new Error("ESChildModel(`#{@name}`): get by array not supported with child models")
 
 		@backend.api.findInstanceById(@, @backend._deserialize, @backend, id, parentId)
 
+	destroyById: (parent, id) ->
+		parentId = @_checkParent(parent)
+		@backend.api.destroy(@getIndex(), @getDefaultType(), id, parentId)
+
 	create: (parent, data) ->
-		if parent instanceof Instance
-			parentId = parent.id
-		else if (typeof(parent) is 'string' or typeof(parent) is 'number')
-			parentId = parent.toString()
-		else
-			throw new Error("ESChildModel(`#{@name}`): must provide parent object or ID as first argument")
+		parentId = @_checkParent(parent)
 
 		instance = @_createInstance()
 		instance.isNewRecord = true
