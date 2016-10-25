@@ -3,6 +3,8 @@ ormojo = require 'ormojo'
 esTypeMap = (orType) ->
 	if orType is ormojo.STRING
 		{ type: 'string' }
+	else if orType is ormojo.TEXT
+		{ type: 'string' }
 	else if orType is ormojo.INTEGER
 		{ type: 'long' }
 	else if orType is ormojo.BOOLEAN
