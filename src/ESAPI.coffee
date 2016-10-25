@@ -50,7 +50,7 @@ makeESAPI = (es, log, Promise) ->
 			rst
 
 	destroy = (index, type, id, parent) ->
-		rq = { index, type, id }
+		rq = { index, type, id, ignore: [404] }
 		if parent then rq.parent = parent
 		log.trace "es.delete >", rq
 		Promise.resolve( es.delete(rq) )
