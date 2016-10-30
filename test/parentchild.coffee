@@ -1,5 +1,5 @@
 { expect } = require 'chai'
-es_backend = require '..'
+{ ESBackend: es_backend } = require '..'
 es_client = require './es_client'
 ormojo = require 'ormojo'
 Blackbird = require 'blackbird-promises'

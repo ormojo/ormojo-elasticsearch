@@ -1,6 +1,6 @@
-{ Migration, Util } = require 'ormojo'
-lodash = require 'lodash'
-deepDiff = require 'deep-diff'
+import { Migration, Util } from 'ormojo'
+import lodash from 'lodash'
+import deepDiff from 'deep-diff'
 
 _getMigrationCounter = (indexList) ->
 	maxn = 0
@@ -155,7 +155,7 @@ class MigrationPlan
 		else
 			@backend.corpus.Promise.resolve()
 
-class ESMigration extends Migration
+export default class ESMigration extends Migration
 	constructor: (corpus, backend) ->
 		super(corpus, backend)
 		@plans = {}
@@ -180,5 +180,3 @@ class ESMigration extends Migration
 	execute: ->
 		promises = (plan.execute() for name,plan of @plans)
 		@corpus.Promise.all(promises)
-
-module.exports = ESMigration

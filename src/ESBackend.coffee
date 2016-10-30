@@ -1,13 +1,12 @@
-{ Backend, BoundModel, Util, createStandardInstanceClassForBoundModel } = require 'ormojo'
-ESCursor = require './ESCursor'
-ESBoundModel = require './ESBoundModel'
-ESChildModel = require './ESChildModel'
-{ ESIndex, ESIndices } = require './ESIndex'
-ESMigration = require './ESMigration'
-ESResultSet = require './ESResultSet'
-{ makeESAPI } = require './ESAPI'
+import { Backend, BoundModel, Util, createStandardInstanceClassForBoundModel } from 'ormojo'
+import ESBoundModel from './ESBoundModel'
+import ESChildModel from './ESChildModel'
+import { ESIndex, ESIndices } from './ESIndex'
+import ESMigration from './ESMigration'
+import ESResultSet from './ESResultSet'
+import { makeESAPI } from './ESAPI'
 
-class ESBackend extends Backend
+export default class ESBackend extends Backend
 	constructor: (@es) ->
 		@indices = new ESIndices(@)
 
@@ -89,5 +88,3 @@ class ESBackend extends Backend
 
 	destroy: (instance, boundModel) ->
 		@api.destroyInstance(instance)
-
-module.exports = ESBackend

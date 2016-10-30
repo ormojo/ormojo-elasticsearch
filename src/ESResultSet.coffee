@@ -1,7 +1,7 @@
-{ ResultSet } = require 'ormojo'
-Cursor = require './ESCursor'
+import { ResultSet } from 'ormojo'
+import Cursor from './ESCursor'
 
-class ESResultSet extends ResultSet
+export default class ESResultSet extends ResultSet
 	constructor: (data, @total, offset, searchBody, @maxScore = 0) ->
 		super()
 		@results = data or []
@@ -14,5 +14,3 @@ class ESResultSet extends ResultSet
 	getCursor: -> @cursor
 
 	getMaxScore: -> @maxScore
-
-module.exports = ESResultSet

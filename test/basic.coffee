@@ -1,5 +1,5 @@
+{ ESBackend: es_backend } = require '..'
 { expect } = require 'chai'
-es_backend = require '..'
 es_client = require './es_client'
 ormojo = require 'ormojo'
 Blackbird = require 'blackbird-promises'
@@ -25,11 +25,11 @@ makeCorpus = ->
 		name: 'Widget'
 		fields: {
 			id: { type: ormojo.STRING }
-			name: { type: ormojo.STRING, default: 'nameless' }
-			qty: { type: ormojo.INTEGER, default: -> 1 + 1 }
+			name: { type: ormojo.STRING, defaultValue: 'nameless' }
+			qty: { type: ormojo.INTEGER, defaultValue: -> 1 + 1 }
 			tags: {
 				type: ormojo.ARRAY(ormojo.STRING)
-				default: -> []
+				defaultValue: -> []
 				elasticsearch: {
 					mapping: (new ESQ).query('fields', 'raw', { type: 'string', index: 'not_analyzed'})
 				}
@@ -68,6 +68,7 @@ describe 'basic tests: ', ->
 		testThing = null
 		awidget.save()
 		.then (thing) ->
+			expect(thing.qty).to.equal(2)
 			console.log 'get:', thing.get()
 			console.log 'dataValues:', thing.dataValues
 			testThing = thing

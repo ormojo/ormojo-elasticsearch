@@ -1,10 +1,11 @@
 /node_modules
 /build
-*.sublime-workspace
+/coverage
+/doc
 /logs
 npm-debug.log
-/coverage
 
 .v8flags.*
 .npm/
 .vagrant/
+*.sublime-workspace

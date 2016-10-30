@@ -1,7 +1,7 @@
 # Basic Elasticsearch crud operations.
-{ Util } = require 'ormojo'
+import { Util } from 'ormojo'
 
-makeESAPI = (es, log, Promise) ->
+export makeESAPI = (es, log, Promise) ->
 	findById = (index, type, id, parent) ->
 		rq = { id, index, type, ignore: [404] }
 		if parent then rq.parent = parent
@@ -87,5 +87,3 @@ makeESAPI = (es, log, Promise) ->
 		findById, findByIds, findRaw, create, update, destroy
 		findInstanceById, createFromInstance, updateInstance, destroyInstance
 	}
-
-module.exports = { makeESAPI }

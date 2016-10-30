@@ -1,1 +1,3 @@
-module.exports = require './ESBackend'
+import ESBackend from './ESBackend'
+
+export { ESBackend }

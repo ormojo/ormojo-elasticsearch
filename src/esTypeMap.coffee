@@ -1,6 +1,6 @@
-ormojo = require 'ormojo'
+import * as ormojo from 'ormojo'
 
-esTypeMap = (orType) ->
+export default esTypeMap = (orType) ->
 	if orType is ormojo.STRING
 		{ type: 'string' }
 	else if orType is ormojo.TEXT
@@ -19,5 +19,3 @@ esTypeMap = (orType) ->
 		esTypeMap(match[1])
 	else
 		undefined
-
-module.exports = esTypeMap

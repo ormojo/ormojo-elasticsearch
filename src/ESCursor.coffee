@@ -1,10 +1,8 @@
-{ Cursor } = require 'ormojo'
+import { Cursor } from 'ormojo'
 
-class ESCursor extends Cursor
+export default class ESCursor extends Cursor
 	constructor: (@query) ->
 		super()
 
 	setFromOffset: (@offset, @limit, @total) ->
 		@
-
-module.exports = ESCursor

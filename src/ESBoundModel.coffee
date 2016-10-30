@@ -1,8 +1,8 @@
-{ BoundModel, createStandardInstanceClassForBoundModel } = require 'ormojo'
-ESField = require './ESField'
-esTypeMap = require './esTypeMap'
+import { BoundModel, createStandardInstanceClassForBoundModel } from 'ormojo'
+import ESField from './ESField'
+import esTypeMap from './esTypeMap'
 
-class ESBoundModel extends BoundModel
+export default class ESBoundModel extends BoundModel
 	constructor: (model, backend, bindingOptions) ->
 		super
 		if typeof(@name) isnt 'string' then throw new Error('ESBoundModel: Cannot bind unnamed model.')
@@ -64,5 +64,3 @@ class ESBoundModel extends BoundModel
 		if @spec.analyzer then props.analyzer = @spec.analyzer
 		if @spec.filter then props.filter = @spec.filter
 		props
-
-module.exports = ESBoundModel

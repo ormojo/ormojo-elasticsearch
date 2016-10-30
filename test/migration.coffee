@@ -1,5 +1,5 @@
 { expect } = require 'chai'
-es_backend = require '..'
+{ ESBackend: es_backend } = require '..'
 es_client = require './es_client'
 ormojo = require 'ormojo'
 Blackbird = require 'blackbird-promises'
@@ -23,18 +23,18 @@ makeCorpus = ->
 makeModel = (corpus, modified) ->
 	fields = {
 		id: { type: ormojo.STRING }
-		name: { type: ormojo.STRING, default: 'nameless' }
-		timestamp: { type: ormojo.DATE, default: -> new Date }
+		name: { type: ormojo.STRING, defaultValue: 'nameless' }
+		timestamp: { type: ormojo.DATE, defaultValue: -> new Date }
 		url: {
 			type: ormojo.STRING
 			elasticsearch: {
 				mapping: { index: 'not_analyzed' }
 			}
 		}
-		qty: { type: ormojo.INTEGER, default: -> 1 + 1 }
+		qty: { type: ormojo.INTEGER, defaultValue: -> 1 + 1 }
 		tags: {
 			type: ormojo.ARRAY(ormojo.STRING)
-			default: -> []
+			defaultValue: -> []
 			elasticsearch: {
 				mapping: {
 					fields: {
@@ -47,7 +47,7 @@ makeModel = (corpus, modified) ->
 			}
 		}
 	}
-	if modified then fields['extra'] = { type: ormojo.STRING, default: 'extraData' }
+	if modified then fields['extra'] = { type: ormojo.STRING, defaultValue: 'extraData' }
 
 	Widget = corpus.createModel({
 		name: 'widget'

@@ -1,7 +1,7 @@
-ESBoundModel = require './ESBoundModel'
-{ Instance } = require 'ormojo'
+import ESBoundModel from './ESBoundModel'
+import { Instance } from 'ormojo'
 
-class ESChildModel extends ESBoundModel
+export default class ESChildModel extends ESBoundModel
 	constructor: ->
 		super
 		@parentBoundModel = @spec.parentBoundModel
@@ -46,5 +46,3 @@ class ESChildModel extends ESBoundModel
 		m['_parent'] = { type: @parentBoundModel.getDefaultType() }
 		m['_routing'] = { required: true }
 		m
-
-module.exports = ESChildModel

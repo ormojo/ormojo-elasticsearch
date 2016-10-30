@@ -1,5 +1,5 @@
 # Represents an index in Elasticsearch.
-class ESIndex
+export class ESIndex
 	constructor: (@backend, @name) ->
 		@boundModels = []
 		@types = {}
@@ -27,7 +27,7 @@ class ESIndex
 		analysis
 
 # Represents the collection of indices associated with a backend.
-class ESIndices
+export class ESIndices
 	constructor: (@backend) ->
 		@indices = {}
 
@@ -39,5 +39,3 @@ class ESIndices
 
 	getIndices: ->
 		@indices
-
-module.exports = { ESIndex, ESIndices }
