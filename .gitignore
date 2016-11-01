@@ -3,6 +3,8 @@
 /coverage
 /doc
 /logs
+/es
+/lib
 npm-debug.log
 
 .v8flags.*
