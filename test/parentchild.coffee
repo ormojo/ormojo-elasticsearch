@@ -47,7 +47,7 @@ makeCorpus = ->
 
 	{ Widget: BWidget, Kidget: BKidget, corpus }
 
-describe 'migration tests: ', ->
+describe 'parent-child tests: ', ->
 	it 'should delete all indices from prior tests', ->
 		es_client.indices.delete({
 			index: 'widget_ormojo*'
