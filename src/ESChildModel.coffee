@@ -17,23 +17,28 @@ export default class ESChildModel extends ESBoundModel
 			throw new Error("ESChildModel(`#{@name}`): must provide parent object or ID as first argument")
 
 	findById: (parent, id) ->
+		if id is undefined
+			throw new Error("ESChildModel(`#{@name}`): both parent and id must be provided")
+
 		parentId = @_checkParent(parent)
 
 		if Array.isArray(id)
 			throw new Error("ESChildModel(`#{@name}`): get by array not supported with child models")
 
-		@backend.api.findInstanceById(@, @backend._deserialize, @backend, id, parentId)
+		@backend.api.findInstanceById(@getIndex(), @getDefaultType(), @_deserialize, @, id, parentId)
 
 	destroyById: (parent, id) ->
+		if id is undefined
+			throw new Error("ESChildModel(`#{@name}`): both parent and id must be provided")
 		parentId = @_checkParent(parent)
 		@backend.api.destroy(@getIndex(), @getDefaultType(), id, parentId)
 
 	create: (parent, data) ->
 		parentId = @_checkParent(parent)
 
-		instance = @_createInstance()
+		instance = @createInstance()
 		instance.isNewRecord = true
-		instance.__applyDefaults()
+		instance._applyDefaults()
 		instance._parent = parentId
 		if data isnt undefined
 			instance.set(data)

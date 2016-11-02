@@ -58,17 +58,16 @@ export makeESAPI = (es, log, Promise) ->
 			log.trace "es.delete <", rst
 			if rst?.found then true else false
 
-	findInstanceById = (boundModel, rehydrate, rehydrateContext, id, parent) ->
-		findById(boundModel.getIndex(), boundModel.getDefaultType(), id, parent)
+	findInstanceById = (index, type, rehydrate, rehydrateContext, id, parent) ->
+		findById(index, type, id, parent)
 		.then (rst) ->
-			if not rst.found then undefined else rehydrate.call(rehydrateContext, boundModel, rst)
+			if not rst.found then undefined else rehydrate.call(rehydrateContext, rst)
 
 	createFromInstance = (instance, rehydrate, rehydrateContext) ->
-		create(instance._index or instance.boundModel.getIndex(), instance._type or instance.boundModel.getDefaultType(), instance.dataValues, instance.id, instance._parent)
+		create(instance._index or instance.boundModel.getIndex(), instance._type or instance.boundModel.getDefaultType(), instance._getDataValues(), instance.id, instance._parent)
 		.then (rst) ->
 			instance._id = rst._id
-			rehydrate.call(rehydrateContext, instance.boundModel, rst, instance)
-			delete instance.isNewRecord
+			rehydrate.call(rehydrateContext, rst, instance)
 			instance
 
 	updateInstance = (instance, rehydrate, rehydrateContext) ->
@@ -77,7 +76,7 @@ export makeESAPI = (es, log, Promise) ->
 		if not delta then return Promise.resolve(instance)
 		update(instance._index or instance.boundModel.getIndex(), instance._type or instance.boundModel.getDefaultType(), instance.id, delta, instance._parent)
 		.then (rst) ->
-			rehydrate.call(rehydrateContext, instance.boundModel, rst, instance)
+			rehydrate.call(rehydrateContext, rst, instance)
 			instance
 
 	destroyInstance = (instance) ->
