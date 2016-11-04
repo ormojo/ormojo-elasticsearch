@@ -1,9 +1,7 @@
 coverage/
 build/
-src/
 doc/
 node_modules/
 coffeelint.json
-.gitignore
+.git*
 .editorconfig
-.babelrc
