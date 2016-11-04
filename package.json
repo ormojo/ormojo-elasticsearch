@@ -57,5 +57,7 @@
     "lodash": "^3.10.1",
     "deep-diff": "^0.3.4"
   },
-  "peerDependencies": {}
+  "peerDependencies": {
+		"ormojo": "^0.1.0"
+	}
 }
