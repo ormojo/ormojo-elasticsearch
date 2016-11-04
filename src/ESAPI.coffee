@@ -64,19 +64,27 @@ export makeESAPI = (es, log, Promise) ->
 			if not rst.found then undefined else rehydrate.call(rehydrateContext, rst)
 
 	createFromInstance = (instance, rehydrate, rehydrateContext) ->
-		create(instance._index or instance.boundModel.getIndex(), instance._type or instance.boundModel.getDefaultType(), instance._getDataValues(), instance.id, instance._parent)
+		# We need to pass in the correct data values to the deserializer here.
+		# (Consequence of switching the sense of the BoundInstance delta storage.)
+		dvs = instance._getDataValues()
+		create(instance._index or instance.boundModel.getIndex(), instance._type or instance.boundModel.getDefaultType(), dvs, instance.id, instance._parent)
 		.then (rst) ->
 			instance._id = rst._id
-			rehydrate.call(rehydrateContext, rst, instance)
+			# Pass along DVs that we stored before...
+			rehydrate.call(rehydrateContext, rst, instance, dvs)
 			instance
 
 	updateInstance = (instance, rehydrate, rehydrateContext) ->
+		# Send only the delta to elasticsearch.
 		# Don't persist unchanged instances
 		delta = Util.getDelta(instance)
 		if not delta then return Promise.resolve(instance)
 		update(instance._index or instance.boundModel.getIndex(), instance._type or instance.boundModel.getDefaultType(), instance.id, delta, instance._parent)
 		.then (rst) ->
-			rehydrate.call(rehydrateContext, rst, instance)
+			# Do the data-value merging, since the persistence was successful.
+			# XXX: private API...
+			instance._mergeDataValues(instance._nextDataValues)
+			rehydrate.call(rehydrateContext, rst, instance, instance.dataValues)
 			instance
 
 	destroyInstance = (instance) ->

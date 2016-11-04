@@ -32,11 +32,12 @@ export default class ESBoundModel extends BoundModel
 		bindingOptions.parentBoundModel = @
 		@backend.bindChildModel(model, bindingOptions)
 
-	_deserialize: (esData, instance) ->
+	_deserialize: (esData, instance, overrideDVs) ->
+		dvs = overrideDVs or esData._source
 		if instance
-			instance._mergeDataValues(esData._source)
+			instance._setDataValues(dvs)
 		else
-			instance = @createInstance(esData._source)
+			instance = @createInstance(dvs)
 		if esData._id then instance._id = esData._id
 		if esData._index then instance._index = esData._index
 		if esData._version then instance._version = esData._version

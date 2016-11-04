@@ -1,6 +1,6 @@
 {
   "name": "ormojo-elasticsearch",
-  "version": "0.0.4",
+  "version": "0.1.0",
   "description": "Elasticsearch driver for ormojo.",
   "main": "lib/index.js",
 	"module": "es/index.js",
