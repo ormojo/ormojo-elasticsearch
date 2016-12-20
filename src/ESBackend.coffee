@@ -14,11 +14,6 @@ export default class ESBackend extends Backend
 
 	_bindModel: (clazz, model, bindingOptions) ->
 		bm = new clazz(model, @, bindingOptions)
-
-		# Apply index auto-prefixing
-		if @indexPrefix
-			bm.esIndex = @indexPrefix + bm.esIndex
-
 		@indices.addBoundModel(bm)
 		bm
 

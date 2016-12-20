@@ -9,6 +9,9 @@ export default class ESBoundModel extends BoundModel
 		if typeof(@name) isnt 'string' then throw new Error('ESBoundModel: Cannot bind unnamed model.')
 		if typeof(@spec.type) isnt 'string' then throw new Error("ESBoundModel: bound model derived from Model named #{model.name} must specify an elasticsearch type")
 		@esIndex = (@spec.index or @name).toLowerCase()
+		# Apply index auto-prefixing.
+		if backend.indexPrefix and (not (bindingOptions?.indexIsRaw))
+			@esIndex = backend.indexPrefix + @esIndex
 		@esType = (@spec.type).toLowerCase()
 		@instanceClass = createStandardInstanceClassForBoundModel(@)
 		@api = backend.api
@@ -29,6 +32,7 @@ export default class ESBoundModel extends BoundModel
 		bindingOptions = bindingOptions or {}
 		# Child index must be the same as this index.
 		bindingOptions.index = @getIndex()
+		bindingOptions.indexIsRaw = true # Parent index is raw and already prefixed
 		bindingOptions.parentBoundModel = @
 		@backend.bindChildModel(model, bindingOptions)
 
