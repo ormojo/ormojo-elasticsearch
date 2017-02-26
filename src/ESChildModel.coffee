@@ -22,16 +22,22 @@ export default class ESChildModel extends ESBoundModel
 
 		parentId = @_checkParent(parent)
 
-		if Array.isArray(id)
-			throw new Error("ESChildModel(`#{@name}`): get by array not supported with child models")
-
-		@backend.api.findInstanceById(@getIndex(), @getDefaultType(), @_deserialize, @, id, parentId)
+		multiple = Array.isArray(id)
+		query = @createQuery().byId(id)
+		query.parent = parentId
+		@findAll(query)
+		.then (resultSet) ->
+			if multiple
+				resultSet.getResults()
+			else
+				(resultSet.getResults())[0]
 
 	destroyById: (parent, id) ->
 		if id is undefined
 			throw new Error("ESChildModel(`#{@name}`): both parent and id must be provided")
 		parentId = @_checkParent(parent)
-		@backend.api.destroy(@getIndex(), @getDefaultType(), id, parentId)
+		@store.delete([ {id, parent: parentId, type: @getDefaultType(), index: @getIndex() } ])
+		.then (rst) -> rst[0]
 
 	create: (parent, data) ->
 		parentId = @_checkParent(parent)

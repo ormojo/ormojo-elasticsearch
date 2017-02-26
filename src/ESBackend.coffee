@@ -3,7 +3,8 @@ import ESBoundModel from './ESBoundModel'
 import ESChildModel from './ESChildModel'
 import { ESIndex, ESIndices } from './ESIndex'
 import ESMigration from './ESMigration'
-import { makeESAPI } from './ESAPI'
+import makeESAPI from './store/ESAPI'
+import ESQuery from './store/Query'
 
 export default class ESBackend extends Backend
 	constructor: (@es) ->
@@ -22,6 +23,8 @@ export default class ESBackend extends Backend
 
 	bindChildModel: (childModel, bindingOptions) ->
 		@_bindModel(ESChildModel, childModel, bindingOptions)
+
+	createQuery: -> new ESQuery
 
 	getMigration: ->
 		new ESMigration(@corpus, @)

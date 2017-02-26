@@ -147,18 +147,18 @@ describe 'basic tests: ', ->
 		Widget.create({name: 'uniquely named thing', qty: 50})
 		.delay(1000) # wait for es indexing
 		.then ->
-			Widget.find({elasticsearch_query: {
+			Widget.find(Widget.createQuery().setQueryDsl({
 				query: { match: { name: 'uniquely' } }
-			}})
+			}))
 		.then (widg) ->
 			expect(widg.qty).to.equal(50)
 			widg.destroy()
 
 	it 'should find nothing', ->
 		{ Widget } = makeCorpus()
-		Widget.find({elasticsearch_query: {
+		Widget.find(Widget.createQuery().setQueryDsl({
 			query: { match: { name: 'frobozz' } }
-		}})
+		}))
 		.then (nothing) ->
 			expect(nothing).to.equal(undefined)
 
@@ -168,35 +168,31 @@ describe 'basic tests: ', ->
 		Blackbird.all(promises)
 		.delay(1000) # wait for es indexing
 		.then (results) ->
-			Widget.findAll({elasticsearch_query: {
+			Widget.findAll(Widget.createQuery().setQueryDsl({
 				query: { match: { tags: 'findAll' } }
-			}})
+			}))
 		.then (results) ->
 			expect(results.getResultCount()).to.equal(10)
 
 	it 'should paginate', ->
 		{ Widget } = makeCorpus()
-		Widget.findAll({
-			limit: 3
-			elasticsearch_query: {
-				query: { match: { tags: 'findAll' } }
-				sort: { qty: 'asc' }
-			}
+		query = Widget.createQuery().setLimit(3).setQueryDsl({
+			query: { match: { tags: 'findAll' } }
+			sort: { qty: 'asc' }
 		})
+		Widget.findAll(query)
 		.then (results) ->
 			expect(results.getResults()[0].qty).to.equal(0)
-			Widget.findAll({
-				cursor: results.getCursor()
-			})
+			Widget.findAll(Widget.createQuery().setCursor(results.getCursor()))
 		.then (results) ->
 			expect(results.getResults()[0].qty).to.equal(3)
 
 	it 'should perform filtering', ->
 		{ Widget } = makeCorpus()
-		Widget.find({
-			elasticsearch_query: {
+		Widget.find(
+			Widget.createQuery().setQueryDsl({
 				query: (new ESQ).query('constant_score', 'filter', 'term', { 'tags.raw': 'findAll' })
-			}
-		})
+			})
+		)
 		.then (results) ->
 			expect(results.tags).to.deep.equal(['findAll'])
